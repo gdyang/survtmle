@@ -166,7 +166,7 @@ estimateCensoring <- function(dataList,
                                                     names(adjustVars))],
                           onlySL = TRUE)[[1]]
             )
-
+          # I added a comment here!
           # put time back to normal
           x$t <- x$t + 1
           # replace any observations with t = 1
