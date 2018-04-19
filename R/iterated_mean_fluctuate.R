@@ -91,9 +91,10 @@ fluctuateIteratedMean <- function(wideDataList, t, uniqtrt, whichJ, allJ, t0,
                         ".", t, ")) +", paste0("H", uniqtrt, ".", t, collapse = "+"))
     }else{
       # figure out dimension without calling model.matrix again
-      msm.p <- sum(grepl(paste0("H.*.",t,".obs"), colnames(wideDataList[[1]])))
+      msm.p <- sum(grepl(paste0("H.*.",t,".obs"), colnames(wideDataList[[1]])))/length(allJ)
+      msm.p.names <- colnames(wideDataList[[1]])[grepl(paste0("H.*.",t,".obs"), colnames(wideDataList[[1]]))]
       flucForm <- paste0(outcomeName, "~ -1 + offset(stats::qlogis(Q", whichJ,
-                        ".", t, ")) +", paste0("H", 1:msm.p, ".", t, ".obs", collapse = "+"))
+                        ".", t, ")) +", paste0(msm.p.names, collapse = "+"))
     }
     if(!Gcomp) {
       # fluctuation model
@@ -126,14 +127,20 @@ fluctuateIteratedMean <- function(wideDataList, t, uniqtrt, whichJ, allJ, t0,
         epsilon <- matrix(flucMod$coefficients)
         # get predictions back
         wideDataList <- lapply(wideDataList, function(x, t) {
-          predCov <- as.matrix(x[,paste0("H",1:msm.p,".",t,".pred")])
-          predOffset <- x[,paste0("Q", whichJ,".",t)]
-          suppressWarnings(
-            x[[paste0("Q", whichJ, "star.", t)]] <- 
-              x[[paste0("N",whichJ,".",t-1)]] + (1-x[[paste0("NnotJ.",t-1)]]-x[[paste0("N",whichJ,".",t-1)]])*
+          if(x == ncol(wideDataList[[1]])){
+            predCov <- as.matrix(x[,paste0("H", rep(allJ, each = msm.p), ".", rep(1:msm.p, length(allJ)),".",t,".pred")])
+            predOffset <- x[,paste0("Q", whichJ,".",t)]
+            suppressWarnings(
+              x[[paste0("Q", whichJ, "star.", t)]] <- 
+                x[[paste0("N",whichJ,".",t-1)]] + (1-x[[paste0("NnotJ.",t-1)]]-x[[paste0("N",whichJ,".",t-1)]])*
                 plogis(qlogis(predOffset) + predCov %*% epsilon)
-          )
-          x
+            )
+            x
+          } else {   
+            
+            
+          }
+
         }, t = t)
       }
     } else {

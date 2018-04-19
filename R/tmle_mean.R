@@ -196,6 +196,7 @@ mean_tmle <- function(ftime,
   n <- length(ftime)
   id <- seq_len(n)
   dat <- data.frame(id = id, ftime = ftime, ftype = ftype, trt = trt)
+  ind.ftype <- grepl("ftype", msm.formula)
 
   if(!is.null(adjustVars)) {
     dat <- cbind(dat, adjustVars)
@@ -204,6 +205,7 @@ mean_tmle <- function(ftime,
   # calculate number of failure types
   nJ <- length(ftypeOfInterest)
   allJ <- sort(unique(ftype[ftype != 0]))
+  nallJ <- length(unique(ftype[ftype != 0]))
   ofInterestJ <- sort(ftypeOfInterest)
 
   # calculate number of groups
@@ -234,6 +236,14 @@ mean_tmle <- function(ftime,
   }else{
     msmWeightList <- NULL
   }
+  
+  if(ind.ftype == T){
+    msmWeightList <- unlist(lapply(msmWeightList, 
+                                   function(x) replicate(nallJ, x, simplify = F)), recursive = F)[-1]
+    
+    names(msmWeightList) <- c("obs", paste0("Z", rep(uniqtrt, each = nallJ), "J", rep(allJ, ntrt)) )
+  }
+
 
   # make long version of data sets needed for estimation of censoring
   dataList <- makeDataList(dat = dat, J = allJ, ntrt = ntrt, uniqtrt = uniqtrt,
@@ -259,6 +269,13 @@ mean_tmle <- function(ftime,
                                    allJ = allJ, ntrt = ntrt, uniqtrt = uniqtrt,
                                    msm.formula = msm.formula,
                                    msmWeightList = msmWeightList)
+  if(ind.ftype == T){
+    wideDataList <- unlist(lapply(wideDataList, 
+                                   function(x) replicate(nallJ, x, simplify = F)), recursive = F)[-1]
+    
+  }
+  
+  
 
   # estimate/fluctuate iterated means
   timeAndType <- expand.grid(rev(seq_len(t0)), ofInterestJ)
