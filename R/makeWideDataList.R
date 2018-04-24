@@ -65,47 +65,39 @@ makeWideDataList <- function(dat,
  
   wideDataList[2:length(dataList)] <- lapply(dataList[2:length(dataList)],
                                              function(x) {
-   if(!msm.ftype){
-     out <- data.frame(dat[, names(adjustVars)],
-                       stats::reshape(x[, !(names(x) %in% dropVars)],
-                                      direction = "wide", timevar = "t", idvar = "id")
-                       ,row.names = NULL)
-     }else { 
-     out <- data.frame(x$ftype , dat[,  names(adjustVars)],
+  
+     out <- data.frame(dat[  names(adjustVars)],
                          stats::reshape(x[, !(names(x) %in% dropVars)],
                                         direction = "wide", timevar = "t", idvar = "id")
                          ,row.names = NULL)
-       }
+       
     
      if(is.null(msm.formula)){
         out[, paste0("C.", 1:t0)] <- 0
       }
-    names(out)[1:(ncol(adjustVars)+1)] <- c("ftype", names(adjustVars))
+    names(out)[1:(ncol(adjustVars))] <- c( names(adjustVars))
     # set Nj0=0 for all j -- makes things easier to run in a loop later
     eval(parse(text = paste0(paste0("out$N", allJ, ".0", collapse = "<-"),
                             "<- out$C.0 <- 0")))
     out
   })
   
-  if(!ftype.ind){
-    names(wideDataList) <- c("obs", uniqtrt)  
-  } else {
-    names(wideDataList) <- c("obs",paste0("Z", rep(uniqtrt, each = length(allJ)),
-                                            "J", rep(allJ, length(uniqtrt))))}
+  names(wideDataList) <- c("obs", uniqtrt)  
 
-  if(!ftype.ind){
+
+  # if(!ftype.ind){
   for(z in uniqtrt){
     wideDataList[[paste0(z)]]$trt <- z
     wideDataList[[paste0(z)]]$g_obsz <- dat[[paste0("g_",z)]]
     }
-  } else {
-    for(z in uniqtrt){
-      for (j in allJ){
-        wideDataList[[paste0("Z", z, "J", j)]]$trt <- z
-        wideDataList[[paste0("Z", z, "J", j)]]$g_obsz <- dat[[paste0("g_",z)]] 
-      }
-    }
-  }
+  # } else {
+  #   for(z in uniqtrt){
+  #     for (j in allJ){
+  #       wideDataList[[paste0("Z", z, "J", j)]]$trt <- z
+  #       wideDataList[[paste0("Z", z, "J", j)]]$g_obsz <- dat[[paste0("g_",z)]] 
+  #     }
+  #   }
+  # }
   
   if(is.null(msm.formula)){
     wideDataList <- lapply(wideDataList, function(x){
@@ -120,7 +112,7 @@ makeWideDataList <- function(dat,
       x
     })
   }else{
-    if(!msm.ftype){
+    if(!ftype.ind){
       wideDataList <- mapply(wdl = wideDataList, mw = msmWeightList, FUN = function(wdl, mw){
       # browser()
       msmModelMatrix <- model.matrix(as.formula(paste0("N1.0 ~ ",msm.formula)), data = wdl)
@@ -141,29 +133,13 @@ makeWideDataList <- function(dat,
       wdl
       }, SIMPLIFY = FALSE)} else {  
         
-        
-        ObswideDataList <- wideDataList[[1]]
+        wideDataList <- mapply(wdl = wideDataList, mw = msmWeightList, FUN = function(wdl, mw){
         for(j in allJ){
-          ObswideDataList$ftype <- j
-          Obs.msmModelMatrix <- model.matrix(as.formula(paste0("N1.0 ~ ",msm.formula)), data = ObswideDataList)
-          msm.p <- dim(Obs.msmModelMatrix)[2]
-          for(t in 1:t0){
-          for(p in 1:msm.p){
-            ObswideDataList[[paste0("H", j, ".", p,".",t,".obs")]] <- 
-              as.numeric(Obs.msmModelMatrix[,p] * mw * as.numeric(ObswideDataList[,paste0("C.",t-1)]==0) / (ObswideDataList[[paste0("G_dC.",t)]] * ObswideDataList$g_obsz))
-            ObswideDataList[[paste0("H", j, ".", p,".",t,".pred")]] <- 
-              as.numeric(Obs.msmModelMatrix[,p] * mw / (ObswideDataList[[paste0("G_dC.",t)]] * ObswideDataList$g_obsz))
-          }
-          }    
-          ObswideDataList[-which(colnames(ObswideDataList) == "ftype")]
-        }
-        wideDataList[[1]] <- ObswideDataList
-        wideDataList[-1] <- mapply(wdl = wideDataList[-1], mw = msmWeightList[-1], FUN = function(wdl, mw){
-        msmModelMatrix <- model.matrix(as.formula(paste0("N1.0 ~ ",msm.formula)), data = wdl)
-        msm.p <- dim(msmModelMatrix)[2]
+          wdl$ftype <- j
+          msmModelMatrix <- model.matrix(as.formula(paste0("N1.0 ~ ",msm.formula)), data = wdl)
+          msm.p <- dim(msmModelMatrix)[2]
         for(t in 1:t0){
           for(p in 1:msm.p){
-            j <- (wdl$ftype)[1]
             wdl[[paste0("H", j, ".", p,".",t,".obs")]] <- 
               as.numeric(msmModelMatrix[,p] * mw * as.numeric(wdl[,paste0("C.",t-1)]==0) / (wdl[[paste0("G_dC.",t)]] * wdl$g_obsz))
             wdl[[paste0("H", j, ".", p,".",t,".pred")]] <- 
@@ -171,18 +147,21 @@ makeWideDataList <- function(dat,
             
           }
         }
+        
         for(p in 1:msm.p){
           j <- (wdl$ftype)[1]
           wdl[[paste0("H", j, ".", p,".",0,".obs")]] <- as.numeric(msmModelMatrix[,p] * mw / wdl$g_obsz)
           wdl[[paste0("H", j, ".", p,".",0,".pred")]] <- as.numeric(msmModelMatrix[,p] * mw / wdl$g_obsz)
         }
-        wdl
-      }, SIMPLIFY = FALSE)
+          wdl <- wdl[,-which(colnames(wdl) == "ftype")]
+      }
+          wdl  
+        }, SIMPLIFY = FALSE)
       
     }
+      }
     
-    
-  }
+  
 
   return(wideDataList)
 }

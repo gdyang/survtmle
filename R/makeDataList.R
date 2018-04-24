@@ -16,7 +16,6 @@
 #'        \code{mean_tmle}.
 #' @param t0 The timepoint at which \code{survtmle} was called to evaluate.
 #' @param bounds Minimum and maximum values to be placed on the \code{ftype}.
-#' @param msm.ftype indicator for whether failure type is included in marginal structure model.
 #' @param ... Other arguments. Not currently used.
 #'
 #' @importFrom plyr join
@@ -24,7 +23,7 @@
 #' @return A list of \code{data.frame} objects as described above.
 #'
 
-makeDataList <- function(dat, J, ntrt, uniqtrt, t0, bounds = NULL, msm.ftype = FALSE,...) {
+makeDataList <- function(dat, J, ntrt, uniqtrt, t0, bounds = NULL,...) {
   n <- nrow(dat)
   dataList <- vector(mode = "list", length = ntrt+1)
   rankftime <- match(dat$ftime, sort(unique(dat$ftime)))
@@ -119,18 +118,5 @@ makeDataList <- function(dat, J, ntrt, uniqtrt, t0, bounds = NULL, msm.ftype = F
   }
   names(dataList) <- c("obs", uniqtrt)
   
-  if (msm.ftype){
-    
-    dataList <- unlist(lapply(dataList, 
-                              function(x) replicate(length(J), x, simplify = F)), recursive = F)[-1]
-    for(list.ind in 2: (length(J)*ntrt)){
-      ftype.j <- (list.ind -1)  %%  length(unique(J))
-      ftype.j[which(ftype.j == 0)] <- length(unique(J))
-      dataList[[list.ind]]$ftype <- J[ftype.j]
-    }
-    
-    names(dataList) <- c("obs", paste0("Z", rep(seq_len(ntrt)-1, each = length(J)), "J", rep(allJ, ntrt)) )
-
-  }
   return(dataList)
 }

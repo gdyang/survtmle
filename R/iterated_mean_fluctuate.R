@@ -66,6 +66,8 @@ fluctuateIteratedMean <- function(wideDataList, t, uniqtrt, whichJ, allJ, t0,
   outcomeName <- ifelse(t == t0, paste("N", whichJ, ".", t0, sep = ""),
                         paste("Q", whichJ, "star.", t + 1, sep = ""))
   n <- length(wideDataList[[1]][,1])
+  ## determine if the treatment is in the msm formula
+  ind.ftype <- grepl("ftype", msm.formula)
   ## determine who to include in estimation
   include <- rep(TRUE, n)
   if(t != 1) {
@@ -91,34 +93,35 @@ fluctuateIteratedMean <- function(wideDataList, t, uniqtrt, whichJ, allJ, t0,
                         ".", t, ")) +", paste0("H", uniqtrt, ".", t, collapse = "+"))
     }else{
       # figure out dimension without calling model.matrix again
-      msm.p <- sum(grepl(paste0("H.*.",t,".obs"), colnames(wideDataList[[1]])))/length(allJ)
-      msm.p.names <- colnames(wideDataList[[1]])[grepl(paste0("H.*.",t,".obs"), colnames(wideDataList[[1]]))]
+      msm.p <- sum(grepl(paste0("H.*",t,".obs"), colnames(wideDataList[[1]])))
+      msm.p.names <- colnames(wideDataList[[1]])[grepl(paste0("H.*",t,".obs"), colnames(wideDataList[[1]]))]
       flucForm <- paste0(outcomeName, "~ -1 + offset(stats::qlogis(Q", whichJ,
                         ".", t, ")) +", paste0(msm.p.names, collapse = "+"))
     }
     if(!Gcomp) {
       # fluctuation model
       if(is.null(msm.formula)){
-        suppressWarnings(
-          flucMod <- stats::glm(formula = stats::as.formula(flucForm),
-                                data = wideDataList[[1]][include, ],
-                                family = stats::binomial(),
-                                start = rep(0, length(uniqtrt)))
-        )
-        # get predictions back
-        wideDataList <- lapply(wideDataList, function(x, t) {
-          suppressWarnings(
-            x[[paste0("Q", whichJ, "star.", t)]] <- 
-              x[[paste0("N",whichJ,".",t-1)]] + (1-x[[paste0("NnotJ.",t-1)]]-x[[paste0("N",whichJ,".",t-1)]])*
-                predict(flucMod, newdata = x, type = "response")
-          )
-          x
-        }, t = t)
+            suppressWarnings(flucMod <- stats::glm(formula = stats::as.formula(flucForm),
+                                  data = wideDataList[[1]][include, ],
+                                  family = stats::binomial(),
+                                  start = rep(0, length(uniqtrt))))
+            # get predictions back
+            wideDataList <- lapply(wideDataList, function(x, t) {
+              suppressWarnings(
+                x[[paste0("Q", whichJ, "star.", t)]] <- 
+                  x[[paste0("N",whichJ,".",t-1)]] + (1-x[[paste0("NnotJ.",t-1)]]-x[[paste0("N",whichJ,".",t-1)]])*
+                  predict(flucMod, newdata = x, type = "response")
+              )
+              x
+            }, t = t)
+          
+        
       }else{
         # stackedData <- Reduce("rbind", lapply(wideDataList[2:length(wideDataList)], 
         #                         "[", i = 1:n, j = c(outcomeName, 
         #                           paste0("H",1:msm.p,".",t,".obs"),paste0("Q", whichJ,".",t))))
         # stackedInclude <- rep(include, msm.p)
+        if(!ind.ftype){
         suppressWarnings(
           flucMod <- stats::glm(formula = stats::as.formula(flucForm),
                                 data = wideDataList[[1]][include,],
@@ -127,8 +130,7 @@ fluctuateIteratedMean <- function(wideDataList, t, uniqtrt, whichJ, allJ, t0,
         epsilon <- matrix(flucMod$coefficients)
         # get predictions back
         wideDataList <- lapply(wideDataList, function(x, t) {
-          if(x == ncol(wideDataList[[1]])){
-            predCov <- as.matrix(x[,paste0("H", rep(allJ, each = msm.p), ".", rep(1:msm.p, length(allJ)),".",t,".pred")])
+            predCov <- as.matrix(x[,paste0("H", 1:msm.p,".",t,".pred")])
             predOffset <- x[,paste0("Q", whichJ,".",t)]
             suppressWarnings(
               x[[paste0("Q", whichJ, "star.", t)]] <- 
@@ -136,12 +138,60 @@ fluctuateIteratedMean <- function(wideDataList, t, uniqtrt, whichJ, allJ, t0,
                 plogis(qlogis(predOffset) + predCov %*% epsilon)
             )
             x
-          } else {   
-            
+        }, t = t)
+        } else {
+          
+          data.list <- vector("list", length = length(allJ))
+
+          for (i in seq_len(length(allJ))){
+            Jtype <- allJ[i]
+            msm.p <- sum(grepl(paste0("H", Jtype,".*",t,".obs"), colnames(wideDataList[[1]])))
+            outcomeName <- ifelse(t == t0, paste("N.", t0, sep = ""),
+                                  paste("Qstar.", t + 1, sep = ""))
+            msm.p.names <- paste0("H.", seq_len(msm.p),".",t,".obs")
+            offset.name <- paste0("Q.", t )
+            outcomeName.temp <- ifelse(t == t0, paste("N", Jtype, ".", t0, sep = ""),
+                                  paste("Q", Jtype, "star.", t + 1, sep = ""))
+            msm.p.names.temp <- colnames(wideDataList[[1]])[grepl(paste0("H", Jtype,".*",t,".obs"), 
+                                                                  colnames(wideDataList[[1]]))]
+            data.list[[i]] <- wideDataList[[1]][include, c(outcomeName.temp, paste0("Q", Jtype,
+                               ".", t ),  msm.p.names.temp)] 
+          colnames( data.list[[i]]) <- c(outcomeName,offset.name, msm.p.names)
             
           }
-
-        }, t = t)
+          
+          stack.glm.data<- Reduce(rbind, data.list)
+          
+          flucForm <- paste0(outcomeName, "~ -1 + offset(stats::qlogis(Q.", t, ")) +",
+                             paste0(msm.p.names, collapse = "+"))
+          
+          suppressWarnings(
+            flucMod <- stats::glm(formula = stats::as.formula(flucForm),
+                                  data = stack.glm.data,
+                                  family = stats::binomial())
+          )
+          epsilon <- matrix(flucMod$coefficients)
+          # get predictions back
+          for (i in seq_len(length(allJ))){
+            Jtype <- allJ[i]
+          wideDataList <- lapply(wideDataList, function(x, t) {
+            predCov <- as.matrix(x[,paste0("H", Jtype , ".", 1:msm.p,".",t,".pred")])
+            predOffset <- x[,paste0("Q", Jtype,".",t)]
+            suppressWarnings(
+              x[[paste0("Q", Jtype, "star.", t)]] <- 
+                x[[paste0("N",Jtype,".",t-1)]] + (1-x[[paste0("NnotJ.",t-1)]]-x[[paste0("N",Jtype,".",t-1)]])*
+                plogis(qlogis(predOffset) + predCov %*% epsilon)
+            )
+            x
+          }, t = t)
+          
+          }
+          
+        }
+        
+        
+        
+        
       }
     } else {
       # if Gcomp, just skip fluctuation step and assign this
@@ -150,7 +200,7 @@ fluctuateIteratedMean <- function(wideDataList, t, uniqtrt, whichJ, allJ, t0,
         x
       }, t = t)
     }
-  } else {
+  } else {      ### if bound is not null
     if(!Gcomp) {
       if(is.null(msm.formula)){
         cleverCovariates <- paste0("H", uniqtrt, ".", t)

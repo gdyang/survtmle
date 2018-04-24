@@ -20,6 +20,7 @@ estimateMSMWeights <- function(dat, dataList = NULL, ntrt, uniqtrt, adjustVars,
                                returnModels, t0 = NULL){
 	long <- !is.null(dataList)
 	n <- n.ii <- n.iv <- length(dat[,1])
+	ind.ftype <- grepl("ftype", msm.formula)
 	if(long){
 		n.ii <- length(dataList[[1]][dataList[[1]]$t <= t0, 1])
 		n.iv <- length(dataList[[2]][,1])
