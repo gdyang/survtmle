@@ -197,7 +197,12 @@ mean_tmle <- function(ftime,
   id <- seq_len(n)
   dat <- data.frame(id = id, ftime = ftime, ftype = ftype, trt = trt)
   # determine if the treatment is in the msm formula
-  ind.ftype <- grepl("ftype", msm.formula)
+  if(is.null(msm.formula)){
+    ind.ftype <- FALSE
+  } else {
+    ind.ftype <- grepl("ftype", msm.formula)    
+  }
+
   if(!is.null(adjustVars)) {
     dat <- cbind(dat, adjustVars)
   }
@@ -405,7 +410,6 @@ mean_tmle <- function(ftime,
         stackedOutcomeVec <- Reduce("c", outcomeList)
         stackedWeightVec <- Reduce("c", lapply(msmWeightList[2:length(msmWeightList)], function(x){x})) 
         modelMatrixList <- lapply(wideDataList[2:length(wideDataList)], function(wdl){
-          if(ind.ftype){wdl$ftype <- j}
           model.matrix(as.formula(paste0("N",j,".0 ~", msm.formula)), data = wdl)
         })
         modelMatrixObs <- model.matrix(as.formula(paste0("N",j,".0 ~", msm.formula)), data = wideDataList[[1]])
@@ -511,22 +515,26 @@ mean_tmle <- function(ftime,
     
     stackedOutcomeVec <- NULL
     stackedWeightVec <- NULL
+    msmWeightList.temp <- vector("list", length = nallJ)
+    outcomeList <- vector("list", length = nallJ)
+    modelMatrixList <- vector("list", length = nallJ)
     stackedModelMatrix <- NULL
     for(j in  allJ){
-      outcomeList <- lapply(wideDataList[2:length(wideDataList)], "[[", paste0("Q",j,"star.1"))
-      stackedOutcomeVec.temp <- Reduce("c", outcomeList)
+      j.ind <- which(allJ == j)
+      outcomeList[[j.ind]] <- lapply(wideDataList[2:length(wideDataList)], "[[", paste0("Q",j,"star.1"))
+      stackedOutcomeVec.temp <- Reduce("c", outcomeList[[j.ind]])
+      msmWeightList.temp[[j.ind]] <- lapply(msmWeightList[2:length(msmWeightList)], function(x){x})
       stackedWeightVec.temp <- Reduce("c", lapply(msmWeightList[2:length(msmWeightList)], function(x){x})) 
-      modelMatrixList <- lapply(wideDataList[2:length(wideDataList)], function(wdl){
+      modelMatrixList[[j.ind]] <- lapply(wideDataList[2:length(wideDataList)], function(wdl){
         wdl$ftype <- j
         model.matrix(as.formula(paste0("N",j,".0 ~", msm.formula)), data = wdl)
       })
       modelMatrixObs <- model.matrix(as.formula(paste0("N",j,".0 ~", msm.formula)), data = wideDataList[[1]])
-      stackedModelMatrix.temp <- Reduce("rbind", modelMatrixList)
+      stackedModelMatrix.temp <- Reduce("rbind", modelMatrixList[[j.ind]])
       
       stackedOutcomeVec <- c(stackedOutcomeVec, stackedOutcomeVec.temp)
-      stackedWeightVec <- c(stackedWeightVec, stackedWeightVec.temp )
+      stackedWeightVec <- c(stackedWeightVec, stackedWeightVec.temp)
       stackedModelMatrix <-  rbind( stackedModelMatrix,  stackedModelMatrix.temp)
-      
     }
     if(msm.family == "binomial"){
       msm.family <- binomial()
@@ -539,13 +547,19 @@ mean_tmle <- function(ftime,
                      weights = stackedWeightVec, family = msm.family)
     )
     est <- fit$coef
-    
-    for(j in ofInterestJ){
       
       # compute co-variance estimate
       msm.p <- length(est)
+      new.modelMatrixList <- NULL
+      new.msmWeightList <- NULL
+      new.outcomeList <- NULL
+      for(n.list in seq_len(length(modelMatrixList))){
+        new.modelMatrixList <- append(new.modelMatrixList, modelMatrixList[[n.list]]) 
+        new.msmWeightList <- append(new.msmWeightList, msmWeightList.temp[[n.list]]) 
+        new.outcomeList <- append(new.outcomeList, outcomeList[[n.list]])
+      }
       if(msm.family$family == "gaussian"){
-        fittedValueList <- lapply(modelMatrixList, function(mm){
+        fittedValueList <- lapply(new.modelMatrixList, function(mm){
           mm %*% matrix(est)
         })
         derivList <- lapply(modelMatrixList, function(mm){
@@ -554,7 +568,7 @@ mean_tmle <- function(ftime,
         fittedValues <- modelMatrixObs %*% matrix(est)
         deriv <- rep(1, n)
       }else if(msm.family$family == "binomial"){
-        fittedValueList <- lapply(modelMatrixList, function(mm){
+        fittedValueList <- lapply(new.modelMatrixList, function(mm){
           plogis(mm %*% matrix(est))
         })
         derivList <- lapply(fittedValueList, function(fitted_value){
@@ -565,8 +579,9 @@ mean_tmle <- function(ftime,
       }
       # mapply goes over values of z
       # apply goes over i = 1,...,n
-      cQ <- Reduce("+", mapply(mw = msmWeightList[2:length(msmWeightList)], 
-                               mm = modelMatrixList, dl = derivList, FUN = function(mw, mm, dl){
+      
+      cQ <- Reduce("+", mapply(mw = new.msmWeightList, 
+                               mm = new.modelMatrixList, dl = derivList, FUN = function(mw, mm, dl){
                                  Reduce("+", lapply(apply(cbind(mw, dl, mm), 1, function(x){ 
                                    list(x[1] * x[2] * tcrossprod(matrix(x[3:(msm.p+2)])))
                                  }),"[[",1))
@@ -577,8 +592,8 @@ mean_tmle <- function(ftime,
       # TO DO: Add ginv tryCatch?
       cQ_inv <- tryCatch(solve(cQ), error = function(x){ MASS::ginv(cQ) })
       # first piece of EIF
-      sumD1_allZ <- Reduce("+", mapply(mw = msmWeightList[2:length(msmWeightList)], fv = fittedValueList, 
-                                       mm = modelMatrixList, ol = outcomeList, function(mm, mw, fv, ol){
+      sumD1_allZ <- Reduce("+", mapply(mw = new.msmWeightList, fv = fittedValueList, 
+                                       ol =new.outcomeList, mm = new.modelMatrixList, function(mw, fv, ol, mm){
                                          oneZ <- apply(cbind(mw, fv, ol, mm), 1, function(x){
                                            # weight * (outcome - fitted) * model matrix
                                            x[1] * (x[3] - x[2]) * x[4:(msm.p+3)]
@@ -590,6 +605,9 @@ mean_tmle <- function(ftime,
       # sanity check: rowMeans of D1 should be small
       # other pieces of EIF
       D_allt <- matrix(0, nrow = msm.p, ncol = n)
+      
+      # probably need loop over all J here...
+      for(j in allJ){
       for(t in 1:t0){
         # TO DO: this could be done more efficiently
         if(t == t0){
@@ -620,12 +638,13 @@ mean_tmle <- function(ftime,
         })
         D_allt <- D_allt + Dt_z
       }
+      }
       # sanity check: rowMeans of D_allZ_allt should be small
       D2 <- cQ_inv %*% D_allt
       infCurves <- D1 + D2
       var <- tcrossprod(infCurves)/n^2
       meanIC <- rowMeans(infCurves)
-    }
+    
 
       
     
