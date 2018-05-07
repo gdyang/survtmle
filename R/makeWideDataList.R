@@ -115,7 +115,7 @@ makeWideDataList <- function(dat,
     if(!ftype.ind){
       wideDataList <- mapply(wdl = wideDataList, mw = msmWeightList, FUN = function(wdl, mw){
       # browser()
-      msmModelMatrix <- model.matrix(as.formula(paste0("N1.0 ~ ",msm.formula)), data = wdl)
+      msmModelMatrix <- model.matrix(as.formula(paste0("N1.0 ~ ",msm.formula)), data = wdl_new)
       msm.p <- dim(msmModelMatrix)[2]
       for(t in 1:t0){
         for(p in 1:msm.p){
@@ -133,12 +133,27 @@ makeWideDataList <- function(dat,
       wdl
       }, SIMPLIFY = FALSE)} else {  
         
+        obs <- wideDataList[[1]]
+        temp.obs.fill <- obs[seq_len(length(allJ) * length(unique(obs$trt))),]
+        temp.obs.fill$ftype <- c(allJ)
+        temp.obs.fill$trt <- c(sort(unique(obs$trt)))
+        
+        cfact <- wideDataList[[2]]
+        temp.cfact.fill <- cfact[seq_len(length(allJ) * length(unique(obs$trt))),]
+        temp.cfact.fill$ftype <-  c(allJ)
+        temp.cfact.fill$trt <- c(sort(unique(obs$trt)))
+
+        # TO DO: This breaks with factor(ftype)
         wideDataList <- mapply(wdl = wideDataList, mw = msmWeightList, FUN = function(wdl, mw){
+          wdl.temp <- wdl
         for(j in allJ){
           wdl$ftype <- j
-          msmModelMatrix <- model.matrix(as.formula(paste0("N1.0 ~ ",msm.formula)), data = wdl)
+          wdl.temp$ftype <- j
+          if(sum(colnames(wdl.temp) != colnames(temp.obs.fill)) == 0){temp.fill <-temp.obs.fill} else{temp.fill <-temp.cfact.fill}
+          wdl.new <- rbind(temp.fill, wdl.temp)
+          msmModelMatrix <- model.matrix(as.formula(paste0("N1.0 ~ ",msm.formula)), data = wdl.new)[-seq_len(nrow(temp.fill)),]
           msm.p <- dim(msmModelMatrix)[2]
-        for(t in 1:t0){
+         for(t in 1:t0){
           for(p in 1:msm.p){
             wdl[[paste0("H", j, ".", p,".",t,".obs")]] <- 
               as.numeric(msmModelMatrix[,p] * mw * as.numeric(wdl[,paste0("C.",t-1)]==0) / (wdl[[paste0("G_dC.",t)]] * wdl$g_obsz))

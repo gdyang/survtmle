@@ -172,9 +172,14 @@ fluctuateIteratedMean <- function(wideDataList, t, uniqtrt, whichJ, allJ, t0,
           )
           epsilon <- matrix(flucMod$coefficients)
           # get predictions back
+          
+          
+          
           for (i in seq_len(length(allJ))){
             Jtype <- allJ[i]
-          wideDataList <- lapply(wideDataList, function(x, t) {
+            wideDataList <- lapply(wideDataList, function(x, t) {
+            x[[paste0("NnotJ.",t-1)]] <- 
+                rowSums(cbind(rep(0, nrow(x)), x[, paste0('N', allJ[allJ != i], '.', t - 1)]))
             predCov <- as.matrix(x[,paste0("H", Jtype , ".", 1:msm.p,".",t,".pred")])
             predOffset <- x[,paste0("Q", Jtype,".",t)]
             suppressWarnings(
@@ -213,7 +218,7 @@ fluctuateIteratedMean <- function(wideDataList, t, uniqtrt, whichJ, allJ, t0,
       Qtildej.t <- paste0("Qtilde",whichJ,".",t)
       Nj.tm1 <- paste0("N",whichJ,".",t-1)
       Qj.t <- paste0("Q",whichJ,".",t)
-      NnotJ.tm1 <- paste0("NnotJ.",t-1)
+      NnotJ.tm1 <-  paste0("NnotJ.",t-1)
       # calculate offset term and outcome
       wideDataList <- lapply(wideDataList, function(x) {
         x[["thisOutcome"]] <- (x[[outcomeName]] - x[[lj.t]])/(x[[uj.t]]-x[[lj.t]])

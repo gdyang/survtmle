@@ -425,8 +425,6 @@ mean_tmle <- function(ftime,
         )
         est <- fit$coef
         
-        
-        
         # compute co-variance estimate
         msm.p <- length(est)
         if(msm.family$family == "gaussian"){
@@ -519,6 +517,12 @@ mean_tmle <- function(ftime,
     outcomeList <- vector("list", length = nallJ)
     modelMatrixList <- vector("list", length = nallJ)
     stackedModelMatrix <- NULL
+    
+    cfact <- wideDataList[[2]]
+    temp.cfact.fill <- cfact[seq_len(length( allJ) * length(unique(trt))),]
+    temp.cfact.fill$ftype <-  c(allJ)
+    temp.cfact.fill$trt <- c(sort(unique(trt)))
+    
     for(j in  allJ){
       j.ind <- which(allJ == j)
       outcomeList[[j.ind]] <- lapply(wideDataList[2:length(wideDataList)], "[[", paste0("Q",j,"star.1"))
@@ -527,7 +531,8 @@ mean_tmle <- function(ftime,
       stackedWeightVec.temp <- Reduce("c", lapply(msmWeightList[2:length(msmWeightList)], function(x){x})) 
       modelMatrixList[[j.ind]] <- lapply(wideDataList[2:length(wideDataList)], function(wdl){
         wdl$ftype <- j
-        model.matrix(as.formula(paste0("N",j,".0 ~", msm.formula)), data = wdl)
+        wdl.new <- rbind(temp.cfact.fill, wdl)
+        model.matrix(as.formula(paste0("N",j,".0 ~", msm.formula)), data = wdl.new)[-seq_len(nrow(temp.cfact.fill)),]
       })
       modelMatrixObs <- model.matrix(as.formula(paste0("N",j,".0 ~", msm.formula)), data = wideDataList[[1]])
       stackedModelMatrix.temp <- Reduce("rbind", modelMatrixList[[j.ind]])
@@ -547,7 +552,9 @@ mean_tmle <- function(ftime,
                      weights = stackedWeightVec, family = msm.family)
     )
     est <- fit$coef
-      
+    #question
+    modelMatrixObs <- modelMatrixObs[, names(est)]
+    
       # compute co-variance estimate
       msm.p <- length(est)
       new.modelMatrixList <- NULL
@@ -644,19 +651,11 @@ mean_tmle <- function(ftime,
       infCurves <- D1 + D2
       var <- tcrossprod(infCurves)/n^2
       meanIC <- rowMeans(infCurves)
-    
-
-      
-    
-    
-  
   }
-  
-  
+  }
   out <- list(est = est, var = var, meanIC = meanIC, ic = infCurves,
               trtMod = trtMod, ftimeMod = ftimeMod, ctimeMod = ctimeMod,
               ftime = ftime, ftype = ftype, trt = trt, adjustVars = adjustVars)
   class(out) <- "survtmle"
   return(out)
-  }
 }
