@@ -82,7 +82,7 @@ estimateIteratedMean <- function(wideDataList, t, whichJ, allJ, t0, adjustVars,
 
   ## determine the outcome for the regression
   outcomeName <- ifelse(t == t0, paste("N", whichJ, ".", t0, sep = ""),
-                        paste("Q", whichJ, "star.", t + 1, sep = ""))
+                        paste("Q", whichJ, "star.", t + 1, ".", t0, sep = ""))
 
   ## create an indicator of any failure prior to t
   wideDataList <- lapply(wideDataList, function(x, t){
@@ -99,7 +99,7 @@ estimateIteratedMean <- function(wideDataList, t, whichJ, allJ, t0, adjustVars,
   uj.t <- paste0("u", whichJ, ".", t)
   Qtildej.t <- paste0("Qtilde", whichJ, ".", t)
   Nj.tm1 <- paste0("N", whichJ, ".", t - 1)
-  Qj.t <- paste0("Q", whichJ, ".", t)
+  Qj.t <- paste0("Q", whichJ, ".", t, ".", t0 )
   NnotJ.tm1 <- paste0("NnotJ.", t - 1)
   Qform <- paste(outcomeName, "~", glm.ftime, sep = " ")
   ## GLM code

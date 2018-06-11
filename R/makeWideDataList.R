@@ -40,7 +40,13 @@ makeWideDataList <- function(dat,
                              msmWeightList = NULL, 
                              t0, ...) {
   wideDataList <- vector(mode = "list", length = length(dataList))
-  ftype.ind <- grepl("ftype", msm.formula)
+  if(is.null(msm.formula)){
+    ind.ftype <- FALSE
+  } else {
+    ind.ftype <- grepl("ftype", msm.formula) 
+    ind.ftime <- grepl("ftime", msm.formula) 
+  }
+  if(ind.ftime) s.list <- rev(seq_len(t0)) else s.list <- t0
   dlNames <- colnames(dataList[[1]])
   g_names <- dlNames[grepl("g_.*", dlNames)]
   # g_names <- g_names[-which(g_names == "g_obsz")]
@@ -85,7 +91,7 @@ makeWideDataList <- function(dat,
   names(wideDataList) <- c("obs", uniqtrt)  
 
 
-  # if(!ftype.ind){
+  # if(!ind.ftype){
   for(z in uniqtrt){
     wideDataList[[paste0(z)]]$trt <- z
     wideDataList[[paste0(z)]]$g_obsz <- dat[[paste0("g_",z)]]
@@ -112,65 +118,92 @@ makeWideDataList <- function(dat,
       x
     })
   }else{
-    if(!ftype.ind){
-      wideDataList <- mapply(wdl = wideDataList, mw = msmWeightList, FUN = function(wdl, mw){
-      # browser()
-      msmModelMatrix <- model.matrix(as.formula(paste0("N1.0 ~ ",msm.formula)), data = wdl_new)
-      msm.p <- dim(msmModelMatrix)[2]
-      for(t in 1:t0){
-        for(p in 1:msm.p){
-          wdl[[paste0("H",p,".",t,".obs")]] <- 
+    if(!ind.ftype){
+      
+      obs <- wideDataList[[1]]
+      temp.obs.fill <- obs[ seq_len(length(unique(obs$trt))),]
+      temp.obs.fill$ftime <- 0
+      temp.obs.fill$trt <- c(sort(unique(obs$trt)))
+      
+      cfact <- wideDataList[[2]]
+      temp.cfact.fill <- cfact[seq_len(length(unique(obs$trt))),]
+      temp.cfact.fill$ftime <- 0
+      temp.cfact.fill$trt <- c(sort(unique(obs$trt)))
+      
+        
+        wideDataList <- mapply(wdl = wideDataList, mw = msmWeightList, FUN = function(wdl, mw){
+          wdl.temp <- wdl
+          for(s in s.list){
+          wdl.temp$ftime <- s
+          wdl$ftime <- s
+          if(sum(colnames(wdl.temp) != colnames(temp.obs.fill)) == 0){temp.fill <-temp.obs.fill} else{temp.fill <-temp.cfact.fill}
+          wdl.new <- rbind(temp.fill, wdl.temp)
+          msmModelMatrix <- model.matrix(as.formula(paste0("N1.0 ~ ",msm.formula)), data = wdl.new)[-seq_len(nrow(temp.fill)),]
+          msm.p <- dim(msmModelMatrix)[2]
+        for(t in 1:s){
+          for(p in 1:msm.p){
+          wdl[[paste0("H",p,".",t, ".",s, ".obs")]] <- 
             as.numeric(msmModelMatrix[,p] * mw * as.numeric(wdl[,paste0("C.",t-1)]==0) / (wdl[[paste0("G_dC.",t)]] * wdl$g_obsz))
-          wdl[[paste0("H",p,".",t,".pred")]] <- 
+          wdl[[paste0("H",p,".",t, ".",s,".pred")]] <- 
             as.numeric(msmModelMatrix[,p] * mw / (wdl[[paste0("G_dC.",t)]] * wdl$g_obsz))
           
+          }
         }
-      }
-      for(p in 1:msm.p){
-        wdl[[paste0("H",p,".",0,".obs")]] <- as.numeric(msmModelMatrix[,p] * mw / wdl$g_obsz)
-        wdl[[paste0("H",p,".",0,".pred")]] <- as.numeric(msmModelMatrix[,p] * mw / wdl$g_obsz)
-      }
-      wdl
-      }, SIMPLIFY = FALSE)} else {  
+        for(p in 1:msm.p){
+          wdl[[paste0("H",p,".",0, ".",s, ".obs")]] <- as.numeric(msmModelMatrix[,p] * mw / wdl$g_obsz)
+          wdl[[paste0("H",p,".",0, ".",s, ".pred")]] <- as.numeric(msmModelMatrix[,p] * mw / wdl$g_obsz)
+        }
+        
+        }
+
+        wdl[,-which(colnames(wdl)=="ftime")]
+      }, SIMPLIFY = FALSE) } else {  
         
         obs <- wideDataList[[1]]
         temp.obs.fill <- obs[seq_len(length(allJ) * length(unique(obs$trt))),]
         temp.obs.fill$ftype <- c(allJ)
+        temp.obs.fill$ftime <- 0
         temp.obs.fill$trt <- c(sort(unique(obs$trt)))
         
         cfact <- wideDataList[[2]]
         temp.cfact.fill <- cfact[seq_len(length(allJ) * length(unique(obs$trt))),]
         temp.cfact.fill$ftype <-  c(allJ)
+        temp.cfact.fill$ftime <- 0
         temp.cfact.fill$trt <- c(sort(unique(obs$trt)))
 
         # TO DO: This breaks with factor(ftype)
         wideDataList <- mapply(wdl = wideDataList, mw = msmWeightList, FUN = function(wdl, mw){
           wdl.temp <- wdl
         for(j in allJ){
-          wdl$ftype <- j
-          wdl.temp$ftype <- j
-          if(sum(colnames(wdl.temp) != colnames(temp.obs.fill)) == 0){temp.fill <-temp.obs.fill} else{temp.fill <-temp.cfact.fill}
-          wdl.new <- rbind(temp.fill, wdl.temp)
-          msmModelMatrix <- model.matrix(as.formula(paste0("N1.0 ~ ",msm.formula)), data = wdl.new)[-seq_len(nrow(temp.fill)),]
-          msm.p <- dim(msmModelMatrix)[2]
-         for(t in 1:t0){
-          for(p in 1:msm.p){
-            wdl[[paste0("H", j, ".", p,".",t,".obs")]] <- 
+         for (s in s.list){
+           wdl$ftype <- j
+           wdl$ftime <- s
+           wdl.temp$ftype <- j
+           wdl.temp$ftime <- s
+           if(sum(colnames(wdl.temp) != colnames(temp.obs.fill)) == 0){temp.fill <-temp.obs.fill} else{temp.fill <-temp.cfact.fill}
+           wdl.new <- rbind(temp.fill, wdl.temp)
+           msmModelMatrix <- model.matrix(as.formula(paste0("N1.0 ~ ",msm.formula)), data = wdl.new)[-seq_len(nrow(temp.fill)),]
+           msm.p <- dim(msmModelMatrix)[2]
+          for(t in 1:s){
+            for(p in 1:msm.p){
+            wdl[[paste0("H", j, ".", p,".",t, ".", s, ".obs")]] <- 
               as.numeric(msmModelMatrix[,p] * mw * as.numeric(wdl[,paste0("C.",t-1)]==0) / (wdl[[paste0("G_dC.",t)]] * wdl$g_obsz))
-            wdl[[paste0("H", j, ".", p,".",t,".pred")]] <- 
+            wdl[[paste0("H", j, ".", p,".",t, ".", s,  ".pred")]] <- 
               as.numeric(msmModelMatrix[,p] * mw / (wdl[[paste0("G_dC.",t)]] * wdl$g_obsz))
             
+            }
           }
-        }
+           for(p in 1:msm.p){
+             j <- (wdl$ftype)[1]
+             wdl[[paste0("H", j, ".", p,".",0, ".", s, ".obs")]] <- as.numeric(msmModelMatrix[,p] * mw / wdl$g_obsz)
+             wdl[[paste0("H", j, ".", p,".",0, ".", s, ".pred")]] <- as.numeric(msmModelMatrix[,p] * mw / wdl$g_obsz)
+           } 
+           
+         }
         
-        for(p in 1:msm.p){
-          j <- (wdl$ftype)[1]
-          wdl[[paste0("H", j, ".", p,".",0,".obs")]] <- as.numeric(msmModelMatrix[,p] * mw / wdl$g_obsz)
-          wdl[[paste0("H", j, ".", p,".",0,".pred")]] <- as.numeric(msmModelMatrix[,p] * mw / wdl$g_obsz)
-        }
           wdl <- wdl[,-which(colnames(wdl) == "ftype")]
       }
-          wdl  
+          wdl[,-which(colnames(wdl)=="ftime")]
         }, SIMPLIFY = FALSE)
       
     }

@@ -63,40 +63,62 @@
 fluctuateIteratedMean <- function(wideDataList, t, uniqtrt, whichJ, allJ, t0,
                                   Gcomp = FALSE, bounds = NULL, msm.formula = NULL,
                                   msm.family = NULL, ...) {
-  outcomeName <- ifelse(t == t0, paste("N", whichJ, ".", t0, sep = ""),
-                        paste("Q", whichJ, "star.", t + 1, sep = ""))
+
+   outcomeName <- ifelse(t == t0, paste("N", whichJ, ".", t0, sep = ""),
+                        paste("Q", whichJ, "star.", t + 1, ".", t0, sep = ""))
+  
   n <- length(wideDataList[[1]][,1])
   ## determine if the treatment is in the msm formula
-  ind.ftype <- grepl("ftype", msm.formula)
-  ## determine who to include in estimation
-  include <- rep(TRUE, n)
-  if(t != 1) {
-    for(j in allJ) {
-      # exclude previously failed subjects
-      include[wideDataList[[1]][[paste0("N",j,".",t-1)]] == 1] <- FALSE
-    }
-    # exclude previously censored subjects
-    include[wideDataList[[1]][[paste0("C.",t-1)]]==1] <- FALSE
+  if(is.null(msm.formula)){
+    ind.ftype <- FALSE
+  } else {
+    ind.ftype <- grepl("ftype", msm.formula) 
+    ind.ftime <- grepl("ftime", msm.formula) 
   }
+  if(ind.ftime) s.list <- rev(seq_len(t0)) else s.list <- t0
+  
+  ## determine who to include in estimation MOVE THIS INSIDE THE LOOP
+  #include <- rep(TRUE, n)
+  #if(t != 1) {
+  #  for(j in allJ) {
+      # exclude previously failed subjects
+  #     include[wideDataList[[1]][[paste0("N",j,".",t-1)]] == 1] <- FALSE
+  #   }
+  #   # exclude previously censored subjects
+  #   include[wideDataList[[1]][[paste0("C.",t-1)]]==1] <- FALSE
+  # }
+
   if(is.null(bounds)) {
-    wideDataList <- lapply(wideDataList, function(x, t) {
+    wideDataList <- lapply(wideDataList, function(x) {
+      
+      for(s in s.list){
+        for(t in rev(seq_len(s))){
+          for(j in allJ){
+      
       # check for 0's and 1's
-      x[[paste0("Q", whichJ, ".", t)]][x[[paste0("Q", whichJ, ".", t)]] <
+      x[[paste0("Q", j, ".", t, ".", s)]][x[[paste0("Q", j, ".", t, ".", s)]] <
                                        .Machine$double.neg.eps] <- .Machine$double.neg.eps
-      x[[paste0("Q", whichJ, ".", t)]][x[[paste0("Q", whichJ, ".", t)]] >
+      x[[paste0("Q", j, ".", t, ".", s)]][x[[paste0("Q", j, ".", t, ".", s)]] >
                                        1 - .Machine$double.neg.eps] <- 1 - .Machine$double.neg.eps
+      
+          }
+        }
+      }
       x
-    }, t = t)
+    })
 
     if(is.null(msm.formula)){
       flucForm <- paste0(outcomeName, "~ -1 + offset(stats::qlogis(Q", whichJ,
                         ".", t, ")) +", paste0("H", uniqtrt, ".", t, collapse = "+"))
     }else{
+      
+      
       # figure out dimension without calling model.matrix again
-      msm.p <- sum(grepl(paste0("H.*",t,".obs"), colnames(wideDataList[[1]])))
-      msm.p.names <- colnames(wideDataList[[1]])[grepl(paste0("H.*",t,".obs"), colnames(wideDataList[[1]]))]
+      msm.p <- sum(grepl(paste0("H.*",t, ".", t0, ".obs"), colnames(wideDataList[[1]])))
+      msm.p.names <- colnames(wideDataList[[1]])[grepl(paste0("H.*",t, ".", t0, ".obs"), colnames(wideDataList[[1]]))]
       flucForm <- paste0(outcomeName, "~ -1 + offset(stats::qlogis(Q", whichJ,
-                        ".", t, ")) +", paste0(msm.p.names, collapse = "+"))
+                        ".", t, ".", t0,")) +", paste0(msm.p.names, collapse = "+"))
+      
     }
     if(!Gcomp) {
       # fluctuation model
@@ -122,47 +144,150 @@ fluctuateIteratedMean <- function(wideDataList, t, uniqtrt, whichJ, allJ, t0,
         #                           paste0("H",1:msm.p,".",t,".obs"),paste0("Q", whichJ,".",t))))
         # stackedInclude <- rep(include, msm.p)
         if(!ind.ftype){
-        suppressWarnings(
+          
+          D_ind = 1/sqrt(n)+1
+          timeAndType <- NULL
+          for(s in s.list){
+            timeAndType <- rbind(timeAndType, expand.grid(rev(seq_len(s)), s) ) 
+          }
+          
+          data.list <- vector("list", length = nrow(timeAndType))
+         loop.ind = 0
+        while (D_ind > 1/sqrt(n)) {
+          loop.ind = 1 + loop.ind
+          if(loop.ind > 10){stop("convergence criterion dosent meet")}
+        for(i in seq_len(nrow(timeAndType))){
+            t <- timeAndType[i,1]
+            t0 <- timeAndType[i,2]
+            
+            include <- rep(TRUE, n)
+            if(t != 1) {
+              for(j in allJ) {
+                # exclude previously failed subjects
+                include[wideDataList[[1]][[paste0("N",j,".",t-1)]] == 1] <- FALSE
+              }
+              # exclude previously censored subjects
+              include[wideDataList[[1]][[paste0("C.",t-1)]]==1] <- FALSE
+            }
+            
+            msm.p <- sum(grepl(paste0("H*",t, ".", t0, ".obs"), colnames(wideDataList[[1]])))
+            msm.p.names <- paste0("H", seq_len(msm.p))
+            
+            outcomeName.temp <- ifelse(t == t0, paste("N", whichJ, ".", t0, sep = ""),
+                                       paste("Q", whichJ, "star.", t + 1, ".", t0, sep = ""))
+            msm.p.names.temp <- colnames(wideDataList[[1]])[grepl(paste0("H*",t, ".", t0, ".obs"), colnames(wideDataList[[1]]))]
+            
+            data.list[[i]] <- wideDataList[[1]][include, c(outcomeName.temp, paste0("Q", whichJ,
+                                                                                    ".", t,".", t0 ),  msm.p.names.temp)]
+            colnames( data.list[[i]]) <- c("outcome", "offset", msm.p.names)
+        }
+          
+          stack.glm.data<- Reduce(rbind, data.list)
+          
+          flucForm <- paste0("outcome~ -1 + offset(stats::qlogis(offset)) +",
+                             paste0(msm.p.names, collapse = "+"))
+
+          suppressWarnings(
           flucMod <- stats::glm(formula = stats::as.formula(flucForm),
-                                data = wideDataList[[1]][include,],
+                                data = stack.glm.data,
                                 family = stats::binomial())
         )
+          
+          
         epsilon <- matrix(flucMod$coefficients)
+        
         # get predictions back
+        
+        for (i in seq_len(nrow(timeAndType))){
+          t <- timeAndType[i,1]
+          t0 <- timeAndType[i,2]
         wideDataList <- lapply(wideDataList, function(x, t) {
-            predCov <- as.matrix(x[,paste0("H", 1:msm.p,".",t,".pred")])
-            predOffset <- x[,paste0("Q", whichJ,".",t)]
+            predCov <- as.matrix(x[,paste0("H", 1:msm.p,".",t, ".", t0, ".pred")])
+            predOffset <- x[,paste0("Q", whichJ,".",t, ".", t0)]
             suppressWarnings(
-              x[[paste0("Q", whichJ, "star.", t)]] <- 
+              x[[paste0("Q", whichJ, "star.", t, ".", t0)]] <- 
                 x[[paste0("N",whichJ,".",t-1)]] + (1-x[[paste0("NnotJ.",t-1)]]-x[[paste0("N",whichJ,".",t-1)]])*
                 plogis(qlogis(predOffset) + predCov %*% epsilon)
             )
             x
         }, t = t)
+        }
+        
+        D_allt <- matrix(0, nrow = msm.p, ncol = n)
+       
+          for(s in s.list){
+            for(t in 1:s){
+              # TO DO: this could be done more efficiently
+              if(t == s){
+                outcome_tplus1 <- wideDataList[[1]][,paste0("N",whichJ,".",t)]
+              }else{
+                outcome_tplus1 <- wideDataList[[1]][,paste0("Q",whichJ,"star.",t+1, ".", s)]}
+              
+              outcome_t <- wideDataList[[1]][,paste0("Q",whichJ,"star.",t, ".", s)]
+              
+              cleverCovariates <- wideDataList[[1]][,paste0("H", 1:msm.p,".",t, ".", s,".obs")]
+              
+              tmp <- cbind(outcome_tplus1, outcome_t, cleverCovariates)
+              Dt_z <- apply(tmp, 1, function(x){
+                (x[1] - x[2]) * x[3:(msm.p+2)]
+              })
+              D_allt <- D_allt + Dt_z
+            }
+          }
+        
+        D_ind <- max(abs(rowMeans(D_allt)))
+        }
+        
+        
+        
         } else {
           
-          data.list <- vector("list", length = length(allJ))
-
-          for (i in seq_len(length(allJ))){
-            Jtype <- allJ[i]
-            msm.p <- sum(grepl(paste0("H", Jtype,".*",t,".obs"), colnames(wideDataList[[1]])))
-            outcomeName <- ifelse(t == t0, paste("N.", t0, sep = ""),
-                                  paste("Qstar.", t + 1, sep = ""))
-            msm.p.names <- paste0("H.", seq_len(msm.p),".",t,".obs")
-            offset.name <- paste0("Q.", t )
+          
+          D_ind = 1/sqrt(n)+1
+          timeAndType <- NULL
+          for(s in s.list){
+            timeAndType <- rbind(timeAndType, expand.grid(rev(seq_len(s)), allJ, s) ) 
+          }
+          
+          data.list <- vector("list", length = nrow(timeAndType))
+          
+          loop.ind = 0 
+          while(D_ind > 1/sqrt(n)){
+          # estimate/fluctuate iterated means
+            loop.ind = 1 + loop.ind
+            if(loop.ind > 6){stop("convergence criterion dosent meet")}
+          for (i in seq_len(nrow(timeAndType))){
+            
+            t <- timeAndType[i,1]
+            Jtype <- timeAndType[i,2]
+            t0 <- timeAndType[i,3]
+            
+            include <- rep(TRUE, n)
+            if(t != 1) {
+              for(j in allJ) {
+                # exclude previously failed subjects
+                include[wideDataList[[1]][[paste0("N",j,".",t-1)]] == 1] <- FALSE
+              }
+              # exclude previously censored subjects
+              include[wideDataList[[1]][[paste0("C.",t-1)]]==1] <- FALSE
+            }
+            msm.p <- sum(grepl(paste0("H", Jtype,".*",t, ".", t0, ".obs"), colnames(wideDataList[[1]])))
+            msm.p.names <- paste0("H", seq_len(msm.p))
+          
             outcomeName.temp <- ifelse(t == t0, paste("N", Jtype, ".", t0, sep = ""),
-                                  paste("Q", Jtype, "star.", t + 1, sep = ""))
-            msm.p.names.temp <- colnames(wideDataList[[1]])[grepl(paste0("H", Jtype,".*",t,".obs"), 
+                                  paste("Q", Jtype, "star.", t + 1, ".", t0, sep = ""))
+            msm.p.names.temp <- colnames(wideDataList[[1]])[grepl(paste0("H", Jtype,".*",t,  ".", t0,".obs"), 
                                                                   colnames(wideDataList[[1]]))]
             data.list[[i]] <- wideDataList[[1]][include, c(outcomeName.temp, paste0("Q", Jtype,
-                               ".", t ),  msm.p.names.temp)] 
-          colnames( data.list[[i]]) <- c(outcomeName,offset.name, msm.p.names)
+                               ".", t,".", t0 ),  msm.p.names.temp)]
+           colnames( data.list[[i]]) <- c("outcome", "offset", msm.p.names)
             
           }
           
+          
           stack.glm.data<- Reduce(rbind, data.list)
           
-          flucForm <- paste0(outcomeName, "~ -1 + offset(stats::qlogis(Q.", t, ")) +",
+          flucForm <- paste0("outcome~ -1 + offset(stats::qlogis(offset)) +",
                              paste0(msm.p.names, collapse = "+"))
           
           suppressWarnings(
@@ -172,18 +297,23 @@ fluctuateIteratedMean <- function(wideDataList, t, uniqtrt, whichJ, allJ, t0,
           )
           epsilon <- matrix(flucMod$coefficients)
           # get predictions back
+         
           
           
-          
-          for (i in seq_len(length(allJ))){
-            Jtype <- allJ[i]
+          for (i in seq_len(nrow(timeAndType))){
+            
+            t <- timeAndType[i,1]
+            Jtype <- timeAndType[i,2]
+            t0 <- timeAndType[i,3]
+            
+            
             wideDataList <- lapply(wideDataList, function(x, t) {
             x[[paste0("NnotJ.",t-1)]] <- 
-                rowSums(cbind(rep(0, nrow(x)), x[, paste0('N', allJ[allJ != i], '.', t - 1)]))
-            predCov <- as.matrix(x[,paste0("H", Jtype , ".", 1:msm.p,".",t,".pred")])
-            predOffset <- x[,paste0("Q", Jtype,".",t)]
+                rowSums(cbind(rep(0, nrow(x)), x[, paste0('N', allJ[allJ != Jtype], '.', t - 1)]))
+            predCov <- as.matrix(x[,paste0("H", Jtype , ".", 1:msm.p,".",t, ".", t0,".pred")])
+            predOffset <- x[,paste0("Q", Jtype,"star.",t, ".", t0)]
             suppressWarnings(
-              x[[paste0("Q", Jtype, "star.", t)]] <- 
+              x[[paste0("Q", Jtype, "star.", t, ".", t0)]] <- 
                 x[[paste0("N",Jtype,".",t-1)]] + (1-x[[paste0("NnotJ.",t-1)]]-x[[paste0("N",Jtype,".",t-1)]])*
                 plogis(qlogis(predOffset) + predCov %*% epsilon)
             )
@@ -192,26 +322,52 @@ fluctuateIteratedMean <- function(wideDataList, t, uniqtrt, whichJ, allJ, t0,
           
           }
           
-        }
+          
+          
+          D_allt <- matrix(0, nrow = msm.p, ncol = n)
+          for(j in allJ){
+            for(s in s.list){
+              for(t in 1:s){
+                # TO DO: this could be done more efficiently
+                if(t == s){
+                  outcome_tplus1 <- wideDataList[[1]][,paste0("N",j,".",t)]
+                }else{
+                  outcome_tplus1 <- wideDataList[[1]][,paste0("Q",j,"star.",t+1, ".", s)]}
+                
+                outcome_t <- wideDataList[[1]][,paste0("Q",j,"star.",t, ".", s)]
+                
+                cleverCovariates <- wideDataList[[1]][,paste0("H",j,".", 1:msm.p,".",t, ".", s,".obs")]
+
+                tmp <- cbind(outcome_tplus1, outcome_t, cleverCovariates)
+                Dt_z <- apply(tmp, 1, function(x){
+                  (x[1] - x[2]) * x[3:(msm.p+2)]
+                })
+                D_allt <- D_allt + Dt_z
+              }
+            }
+          }
+          
+          D_ind <- max(abs(rowMeans(D_allt)))
+          }
+      
+      
+    }
         
-        
-        
-        
-      }
-    } else {
+       }
+      }else {
       # if Gcomp, just skip fluctuation step and assign this
       wideDataList <- lapply(wideDataList, function(x, t) {
         x[[paste0("Q", whichJ, "star.", t)]] <- x[[paste0("Q", whichJ, ".", t)]]
         x
       }, t = t)
     }
-  } else {      ### if bound is not null
+    } else {      ### if bound is not null   #### Need to disscuss this part
     if(!Gcomp) {
       if(is.null(msm.formula)){
         cleverCovariates <- paste0("H", uniqtrt, ".", t)
       }else{
-        msm.p <- sum(grepl(paste0("H.*.",t), colnames(wideDataList[[1]])))
-        cleverCovariates <- paste0("H", 1:msm.p, ".", t, ".obs")
+        msm.p <- sum(grepl(paste0("H.*.",t,".", t0, ".obs"), colnames(wideDataList[[1]])))
+        cleverCovariates <- paste0("H", 1:msm.p, ".", t,".", t0, ".obs")
       }
       lj.t <- paste0("l",whichJ,".",t)
       uj.t <- paste0("u",whichJ,".",t)
@@ -264,7 +420,7 @@ fluctuateIteratedMean <- function(wideDataList, t, uniqtrt, whichJ, allJ, t0,
           cleverCovariates <- paste0("H", 1:msm.p, ".", t, ".pred")
         }
         wideDataList <- lapply(wideDataList, function(x) {
-          x[[paste0("Q",whichJ,"star.",t)]] <- x[[Nj.tm1]] +
+          x[[paste0("Q",whichJ,"star.",t, ".", t0)]] <- x[[Nj.tm1]] +
             (1 - x[[NnotJ.tm1]] - x[[Nj.tm1]])* (plogis(x$thisOffset +
               as.matrix(x[, cleverCovariates]) %*% as.matrix(beta))*x$thisScale
             + x[[lj.t]])
@@ -273,7 +429,7 @@ fluctuateIteratedMean <- function(wideDataList, t, uniqtrt, whichJ, allJ, t0,
       }
     } else {
       wideDataList <- lapply(wideDataList, function(x, t) {
-          x[[paste0("Q", whichJ, "star.", t)]] <- x[[Qj.t]]
+          x[[paste0("Q", whichJ, "star.", t,".", t0)]] <- x[[Qj.t]]
           x
         }, t = t)
     }
