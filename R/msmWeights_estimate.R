@@ -46,13 +46,13 @@ estimateMSMWeights <- function(dat, dataList = NULL, ntrt, uniqtrt, adjustVars,
 			}
 		}
 	}else if(msm.weights == "equal"){
-		msmWeightList <- vector(mode = "list", length = ntrt + ifelse(long, 1,2))
+		msmWeightList <- vector(mode = "list", length = ntrt + 1 + long)
 		ct <- 0
 		for(i in 1:length(msmWeightList)){
 			this_n <- n
 			if(i == 2) this_n <- n.ii
 			if(i > 2) this_n <- n.iv
-			msmWeightList[[i]] <- rep(1, this_n)
+			msmWeightList[[i]] <- rep(1/ntrt, this_n)
 		}
 	}else{
 		stop("Only msm.weights = 'marginal' or 'equal' supported at this time.")
