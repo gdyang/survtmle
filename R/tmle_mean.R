@@ -186,6 +186,8 @@ mean_tmle <- function(ftime,
                       returnModels = FALSE,
                       ftypeOfInterest = unique(ftype[ftype != 0]),
                       trtOfInterest = unique(trt),
+                      trtofTime = NULL,   ### new
+                      varofTime = NULL,   ### new
                       bounds = NULL,
                       verbose = FALSE,
                       Gcomp = FALSE,
@@ -195,7 +197,7 @@ mean_tmle <- function(ftime,
   # assemble data frame of necessary variables
   n <- length(ftime)
   id <- seq_len(n)
-  dat <- data.frame(id = id, ftime = ftime, ftype = ftype, trt = trt)
+  if(length(trtofTime) != 0){dat <- data.frame(id = id, ftime = ftime, ftype = ftype, trt = trt[[1]][,-1])}
   s.list <- sort(t0)
   
   # determine if the treatment is in the msm formula
@@ -208,8 +210,8 @@ mean_tmle <- function(ftime,
     }
   
 
-  if(!is.null(adjustVars)) {
-    dat <- cbind(dat, adjustVars)
+  if(!is.null(adjustVars) & length(trtofTime) != 0) {
+    dat <- cbind(dat, adjustVars[[1]][,-1]) ### maybe change it to merge by id
   }
 
   # calculate number of failure types
@@ -219,18 +221,25 @@ mean_tmle <- function(ftime,
   ofInterestJ <- sort(ftypeOfInterest)
 
   # calculate number of groups
-  ntrt <- length(trtOfInterest)
-  uniqtrt <- sort(trtOfInterest)
+  if(length(trtOfInterest) != 0){
+    ntrt <- (trtOfInterest[,-1])
+    uniqtrt <- (trtOfInterest)[,-1] 
+  }else{
+    ntrt <- length(unique(unlist(trtOfInterest[,-1])))
+    uniqtrt <- unique(unlist(trtOfInterest[,-1]))
+  }
 
   # estimate trt probabilities
   trtOut <- estimateTreatment(dat = dat,
                               ntrt = ntrt,
                               uniqtrt = uniqtrt,
                               adjustVars = adjustVars,
+                              trt = trt,
                               SL.trt = SL.trt,
                               glm.trt = glm.trt,
                               returnModels = returnModels,
-                              gtol = gtol)
+                              gtol = gtol,
+                              trtOfInterest = trtOfInterest)
   dat <- trtOut$dat
   trtMod <- trtOut$trtMod
   

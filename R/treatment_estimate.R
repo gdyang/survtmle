@@ -237,8 +237,15 @@ estimateTreatment <- function(dat, adjustVars, glm.trt = NULL, SL.trt = NULL,
                               returnModels = FALSE, verbose = FALSE,
                               gtol = 1e-3, ...) {
   n <- length(dat[,1])
+  
+  if(length(trtofTime) == 0){
+    
+  
+  
   uniqtrt <- unique(dat$trt)
   ntrt <- length(uniqtrt)
+
+  
 
   if(length(unique(dat$trt)) == 1) {
     eval(parse(text = paste0("dat$g_", unique(dat$trt), "<- 1")))
@@ -345,6 +352,131 @@ estimateTreatment <- function(dat, adjustVars, glm.trt = NULL, SL.trt = NULL,
   out <- list()
   out$dat <- dat
   out$trtMod <- NULL
+  }else{
+    
+    ##### Time varing confounding 
+    uniqtrt <- unique(unlist(trtOfInterest[,-1]))
+    ntrt <- length(uniqtrt)
+
+    regime <- trtOfInterest[,-1]
+    trtofTime <- trtOfInterest[,1]
+    n_regime <- ncol(regime)
+    
+      
+        if(ntrt == 1) {
+          eval(parse(text = paste0("dat$r_", i, "<- 1")))
+        } else if (ntrt == 2){
+          ## create data to fit the model
+          tmax <- max(trtofTime)
+          id_include <- trt[[paste0("t", tmax)]][,1]
+          trt_outcome <- trt[[paste0("t", tmax)]][,2]
+          trt_past.temp <- lapply(trt[paste0("t", trtofTime[which( trtofTime< tmax)])], function(trtsub){
+            trt.temp <- trtsub[which(trtsub[,1] %in%  id_include),]
+            return(trt.temp)
+          })
+          trt_past <- data.frame(id = id_include)
+          for(list.ind in 1: length(trt_past.temp)){
+            trt_t <- trt_past.temp[list.ind]
+            temp <- trt_t[[1]]
+            colnames(temp)[2] <- paste0("trt_", names(trt_t))
+            trt_past <- merge(trt_past, temp, by = "id")
+          }
+          
+          
+          var_past.temp <- lapply(adjustVars[paste0("t", trtofTime[which( trtofTime<= tmax)])], function(varsub){
+            var.temp <- varsub[which(varsub[,1] %in%  id_include),]
+            return(var.temp)
+          })
+          
+          var_past <- data.frame(id = id_include)
+          for(list.ind in 1: length(var_past.temp)){
+            var_t <- var_past.temp[list.ind]
+            temp <- var_t[[1]]
+            colnames(temp)[-1] <- paste0(colnames(temp[-1]), "_", names(var_t))
+            var_past <- merge(var_past, temp, by = "id")
+          }
+          
+
+          # binarize the outcome
+          thisY <- as.numeric(trt_outcome == max(trt_outcome))
+          trt_var_past <- merge(trt_past, var_past, by = "id")[-1]
+          
+          # fit Super Learner 
+          #  NEED TO FIX SUPER LEARNER PART
+          if(!is.null(SL.trt)) {
+            if(class(SL.trt) != "SuperLearner") {
+              trtMod <- SuperLearner::SuperLearner(Y = thisY, X = trt_var_past,
+                                                   newX = trt_var_past,
+                                                   SL.library = SL.trt,
+                                                   id = dat$id, verbose = verbose,
+                                                   family = "binomial")
+            } else {
+              trtMod <- SL.trt
+            }
+            #dat[[paste0("g_",max(dat$trt))]] <- trtMod$SL.predict
+            #dat[[paste0("g_",min(dat$trt))]] <- 1 - trtMod$SL.predict
+            
+          } else if(!is.null(glm.trt) & is.null(SL.trt)) {
+            # set up model formula and data for the treatment regression
+            #trt_form <- paste("thisY", "~", glm.trt, sep = " ")
+            trt_data_in <- as.data.frame(cbind(trt_var_past, thisY))
+            
+            # fit GLM if Super Learner not requested
+            if(!("glm" %in% class(glm.trt)) & !("speedglm" %in% class(glm.trt))) {
+              # fit the treatment model
+              trtMod <- fast_glm(reg_form = stats::as.formula("thisY~."),
+                                 data = trt_data_in,
+                                 family = stats::binomial())
+            } else {
+              trtMod <- glm.trt
+            }
+
+            for (regime_ind in 1:n_regime){
+              trt_data_pred <- trt_data_in
+              for(time_ind in 1:length(trtofTime)){
+                t <- trtofTime[time_ind]
+                trt_data_pred[,paste0("trt_t",t)] <- regime[time_ind,regime_ind]
+              }
+            suppressWarnings(
+              pred <- predict(trtMod, newdata = trt_data_pred, type = "response")
+            )
+            if(regime[length(trtofTime),regime_ind] == 1){
+              dat[[paste0("g_", regime_ind)]] <- pred 
+            }else{dat[[paste0("g_", regime_ind)]] <- 1-pred }
+            }
+          }
+          
+          
+        }
+      
+      
+    # truncate propensities
+    for(a in unique(dat$trt)){
+      eval(parse(text = paste0("dat$g_", a, "[dat$g_", a,
+                               "< gtol]<- gtol")))  
+    }
+    
+    # make a column of observed a
+    ind <- rep(NA, n)
+    for(j in 1:ntrt){
+      ind[dat$trt == uniqtrt[j]] <- which(colnames(dat) == paste0("g_",uniqtrt[j]))
+    }
+    dat$g_obsz <- dat[cbind(seq_along(ind),ind)]
+    
+    out <- list()
+    out$dat <- dat
+    out$trtMod <- NULL
+      
+      
+    
+    
+  }
+  
+  
+  
+  
+  
+  
   if(returnModels) out$trtMod <- trtMod
   return(out)
 }

@@ -154,7 +154,6 @@ fluctuateIteratedMean <- function(wideDataList, t, uniqtrt, whichJ, allJ, t0,
           while(D_ind > 1/sqrt(n)){
           # estimate/fluctuate iterated means
             loop.ind = 1 + loop.ind
-            if(loop.ind > 6){stop("convergence criterion dosent meet")}
           for (i in seq_len(nrow(timeAndType))){
             
             t <- timeAndType[i,1]
@@ -248,6 +247,7 @@ fluctuateIteratedMean <- function(wideDataList, t, uniqtrt, whichJ, allJ, t0,
           }
           
           D_ind <- max(abs(rowMeans(D_allt)))
+          if(loop.ind > 6){D_ind <- 0}
           }
        }
       }else {

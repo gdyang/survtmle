@@ -120,3 +120,4 @@ makeDataList <- function(dat, J, ntrt, uniqtrt, t0, bounds = NULL,...) {
   
   return(dataList)
 }
+
