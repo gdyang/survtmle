@@ -457,11 +457,16 @@ estimateTreatment <- function(dat, adjustVars, glm.trt = NULL, SL.trt = NULL,
     }
     
     # make a column of observed a
-    ind <- rep(NA, n)
-    for(j in 1:ntrt){
-      ind[dat$trt == uniqtrt[j]] <- which(colnames(dat) == paste0("g_",uniqtrt[j]))
-    }
-    dat$g_obsz <- dat[cbind(seq_along(ind),ind)]
+    
+    suppressWarnings(
+     pred_obsz <- predict(trtMod, newdata = trt_data_in[, -12], type = "response")
+    )
+    dat$g_obsz <- ifelse(thisY == 1, pred_obsz, 1- pred_obsz)
+    #ind <- rep(NA, n)
+    #for(j in 1:ntrt){
+    #  ind[dat$trt == uniqtrt[j]] <- which(colnames(dat) == paste0("g_",uniqtrt[j]))
+    #}
+    #dat$g_obsz <- dat[cbind(seq_along(ind),ind)]
     
     out <- list()
     out$dat <- dat
