@@ -197,7 +197,11 @@ mean_tmle <- function(ftime,
   # assemble data frame of necessary variables
   n <- length(ftime)
   id <- seq_len(n)
-  if(length(trtofTime) != 0){dat <- data.frame(id = id, ftime = ftime, ftype = ftype, trt = trt[[1]][,-1])}
+  if(length(trtofTime) != 0){
+    dat <- data.frame(id = id, ftime = ftime, ftype = ftype, trt = trt[[1]][,-1])
+    id_subset <- trt[[paste0("t", max(trtofTime))]][,1]
+    dat <- subset(dat, id %in% id_subset)
+    } else {dat <- data.frame(id = id, ftime = ftime, ftype = ftype, trt = trt)}
   s.list <- sort(t0)
   
   # determine if the treatment is in the msm formula
@@ -211,7 +215,7 @@ mean_tmle <- function(ftime,
   
 
   if(!is.null(adjustVars) & length(trtofTime) != 0) {
-    dat <- cbind(dat, adjustVars[[1]][,-1]) ### maybe change it to merge by id
+    dat <- merge(dat, adjustVars[[1]], by = "id") 
   }
 
   # calculate number of failure types

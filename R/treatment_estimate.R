@@ -238,7 +238,7 @@ estimateTreatment <- function(dat, adjustVars, glm.trt = NULL, SL.trt = NULL,
                               gtol = 1e-3, ...) {
   n <- length(dat[,1])
   
-  if(length(trtofTime) == 0){
+  if(is.null(trtofTime)){
     
   
   
@@ -364,7 +364,7 @@ estimateTreatment <- function(dat, adjustVars, glm.trt = NULL, SL.trt = NULL,
     
       
         if(ntrt == 1) {
-          eval(parse(text = paste0("dat$r_", i, "<- 1")))
+          eval(parse(text = paste0("dat$g_", c(1:n_regime), "<- 1")))
         } else if (ntrt == 2){
           ## create data to fit the model
           tmax <- max(trtofTime)
@@ -447,11 +447,11 @@ estimateTreatment <- function(dat, adjustVars, glm.trt = NULL, SL.trt = NULL,
           }
           
           
-        }
+        } ##### need to add the case when trt is not binary
       
       
     # truncate propensities
-    for(a in unique(dat$trt)){
+    for(a in 1:n_regime){
       eval(parse(text = paste0("dat$g_", a, "[dat$g_", a,
                                "< gtol]<- gtol")))  
     }
