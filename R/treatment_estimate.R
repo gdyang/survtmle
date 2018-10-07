@@ -362,28 +362,33 @@ estimateTreatment <- function(dat, adjustVars, glm.trt = NULL, SL.trt = NULL,
     trtofTime <- trtOfInterest[,1]
     n_regime <- ncol(regime)
     
-      
+   for (t.ind in trtofTime){
+     
+   
         if(ntrt == 1) {
           eval(parse(text = paste0("dat$g_", c(1:n_regime), "<- 1")))
         } else if (ntrt == 2){
           ## create data to fit the model
-          tmax <- max(trtofTime)
-          id_include <- trt[[paste0("t", tmax)]][,1]
-          trt_outcome <- trt[[paste0("t", tmax)]][,2]
-          trt_past.temp <- lapply(trt[paste0("t", trtofTime[which( trtofTime< tmax)])], function(trtsub){
-            trt.temp <- trtsub[which(trtsub[,1] %in%  id_include),]
-            return(trt.temp)
-          })
-          trt_past <- data.frame(id = id_include)
-          for(list.ind in 1: length(trt_past.temp)){
-            trt_t <- trt_past.temp[list.ind]
-            temp <- trt_t[[1]]
-            colnames(temp)[2] <- paste0("trt_", names(trt_t))
-            trt_past <- merge(trt_past, temp, by = "id")
+          id_include <- trt[[paste0("t", t.ind)]][,1]
+          trt_outcome <- trt[[paste0("t", t.ind)]][,2]
+          if (t.ind  == 0){
+            trt_past <- data.frame(id = id_include)
+          } else {
+            trt_past.temp <- lapply(trt[paste0("t", trtofTime[which( trtofTime< t.ind)])], function(trtsub){
+              trt.temp <- trtsub[which(trtsub[,1] %in%  id_include),]
+              return(trt.temp)
+            })
+            trt_past <- data.frame(id = id_include)
+            for(list.ind in 1: length(trt_past.temp)){
+              trt_t <- trt_past.temp[list.ind]
+              temp <- trt_t[[1]]
+              colnames(temp)[2] <- paste0("trt_", names(trt_t))
+              trt_past <- merge(trt_past, temp, by = "id")
+            } 
           }
           
           
-          var_past.temp <- lapply(adjustVars[paste0("t", trtofTime[which( trtofTime<= tmax)])], function(varsub){
+          var_past.temp <- lapply(adjustVars[paste0("t", trtofTime[which( trtofTime<= t.ind)])], function(varsub){
             var.temp <- varsub[which(varsub[,1] %in%  id_include),]
             return(var.temp)
           })
@@ -399,7 +404,7 @@ estimateTreatment <- function(dat, adjustVars, glm.trt = NULL, SL.trt = NULL,
 
           # binarize the outcome
           thisY <- as.numeric(trt_outcome == max(trt_outcome))
-          trt_var_past <- merge(trt_past, var_past, by = "id")[-1]
+          trt_var_past <- merge(trt_past, var_past, by = "id")[,-1]
           
           # fit Super Learner 
           #  NEED TO FIX SUPER LEARNER PART
@@ -433,16 +438,23 @@ estimateTreatment <- function(dat, adjustVars, glm.trt = NULL, SL.trt = NULL,
 
             for (regime_ind in 1:n_regime){
               trt_data_pred <- trt_data_in
-              for(time_ind in 1:length(trtofTime)){
-                t <- trtofTime[time_ind]
-                trt_data_pred[,paste0("trt_t",t)] <- regime[time_ind,regime_ind]
-              }
+              if (t.ind != 0) {
+                for(regime_time in 1:length(trtofTime[which(trtofTime < t.ind)])){
+                  t <- trtofTime[regime_time]
+                  trt_data_pred[,paste0("trt_t",t)] <- regime[regime_time,regime_ind]
+                }
+              }  
+              
+              
             suppressWarnings(
               pred <- predict(trtMod, newdata = trt_data_pred, type = "response")
             )
-            if(regime[length(trtofTime),regime_ind] == 1){
-              dat[[paste0("g_", regime_ind)]] <- pred 
-            }else{dat[[paste0("g_", regime_ind)]] <- 1-pred }
+            
+            if(regime[which(trtofTime == t.ind ),regime_ind] == 1){
+              dat[id_include, paste0("g_", regime_ind, "_t", t.ind)] <- pred 
+            }else{ 
+              dat[id_include, paste0("g_", regime_ind, "_t", t.ind)] <- 1-pred 
+              }
             }
           }
           
@@ -452,16 +464,21 @@ estimateTreatment <- function(dat, adjustVars, glm.trt = NULL, SL.trt = NULL,
       
     # truncate propensities
     for(a in 1:n_regime){
-      eval(parse(text = paste0("dat$g_", a, "[dat$g_", a,
-                               "< gtol]<- gtol")))  
+        eval(parse(text = paste0("dat$g_", a, "_t",t.ind, "[dat$g_", a, "_t", t.ind,
+                                 "< gtol]<- gtol")))   
+
     }
+     
+     suppressWarnings(
+       pred_obsz <- predict(trtMod, newdata = trt_data_in[, -12], type = "response")
+     )
+     dat[id_include, paste0("g_obsz_t", t.ind)] <- ifelse(thisY == 1, pred_obsz, 1 - pred_obsz)
+    
+    
+   }
     
     # make a column of observed a
     
-    suppressWarnings(
-     pred_obsz <- predict(trtMod, newdata = trt_data_in[, -12], type = "response")
-    )
-    dat$g_obsz <- ifelse(thisY == 1, pred_obsz, 1- pred_obsz)
     #ind <- rep(NA, n)
     #for(j in 1:ntrt){
     #  ind[dat$trt == uniqtrt[j]] <- which(colnames(dat) == paste0("g_",uniqtrt[j]))
