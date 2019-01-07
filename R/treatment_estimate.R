@@ -238,9 +238,6 @@ estimateTreatment <- function(dat, adjustVars, glm.trt = NULL, SL.trt = NULL,
                               gtol = 1e-3, ...) {
   n <- length(dat[,1])
   
-
-    
-  
   
   uniqtrt <- unique(dat$trt)
   ntrt <- length(uniqtrt)

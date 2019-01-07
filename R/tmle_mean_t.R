@@ -1,4 +1,4 @@
-#' TMLE for G-Computation of Cumulative Incidence
+#' TMLE for G-Computation of Cumulative Incidence with Time-varing Confounding
 #'
 #' This function estimates the marginal cumulative incidence for failures of
 #' specified types using targeted minimum loss-based estimation based on the
@@ -167,7 +167,7 @@
 #' @export
 #'
 
-mean_tmle <- function(ftime,
+mean_tmle_T <- function(ftime,
                       ftype,
                       trt,
                       t0 = max(ftime[ftype > 0]),
@@ -198,11 +198,11 @@ mean_tmle <- function(ftime,
   n <- length(ftime)
   id <- seq_len(n)
   if (is.null(trtofTime)){
-    dat <- data.frame(id = id, ftime = ftime, ftype = ftype, trt = trt)
+    stop("Need to specific treatment of time")
   } else {
     dat <- data.frame(id = id, ftime = ftime, ftype = ftype)
     trtData <- trtDataframe(id = id, trt = trt,trtofTime = trtofTime)
-    }
+  }
 
 
   s.list <- sort(t0)
@@ -214,46 +214,26 @@ mean_tmle <- function(ftime,
     ind.ftype <- grepl("ftype", msm.formula)
     ind.ftime <- grepl("ftime", msm.formula)
     if (length(t0) == 1 & ind.ftime) {stop("need more than 1 interested failure time")}
-    }
-
-
-
-  if (!is.null(adjustVars) & is.null(trtofTime)) {
-    dat <- cbind(dat, adjustVars)
-  } else if (!is.null(adjustVars) & !is.null(trtofTime)){
-    varData <- VarDataframe(id = id, adjustVars = adjustVars,trtofTime = trtofTime)
   }
+
+
+
+   if(!is.null(adjustVars) & !is.null(trtofTime)){
+    varData <- VarDataframe(id = id, adjustVars = adjustVars,trtofTime = trtofTime)}
+
 
   # calculate number of failure types
-  nJ <- length(ftypeOfInterest)
-  allJ <- sort(unique(ftype[ftype != 0]))
-  nallJ <- length(unique(ftype[ftype != 0]))
-  ofInterestJ <- sort(ftypeOfInterest)
+    nJ <- length(ftypeOfInterest)
+    allJ <- sort(unique(ftype[ftype != 0]))
+    nallJ <- length(unique(ftype[ftype != 0]))
+    ofInterestJ <- sort(ftypeOfInterest)
 
-  # calculate number of groups
-
-  if(!is.data.frame(trtOfInterest)){
-    ntrt <- length(trtOfInterest)
-    uniqtrt <- sort(trtOfInterest)
-  }else{
-    # is the trtofinterest is not data.frame
+  # calculate number of treatment regimen
     ntrt <- length(unique(unlist(trtOfInterest[,-1])))
     uniqtrt <- unique(unlist(trtOfInterest[,-1]))
-  }
+
 
   # estimate trt probabilities
-  if (is.null(trtofTime)){
-    trtOut <- estimateTreatment(dat = dat,
-                                ntrt = ntrt,
-                                uniqtrt = uniqtrt,
-                                adjustVars = adjustVars,
-                                trt = trt,
-                                SL.trt = SL.trt,
-                                glm.trt = glm.trt,
-                                returnModels = returnModels,
-                                gtol = gtol,
-                                trtOfInterest = trtOfInterest)
-  } else {
     trtOut <- estimateTreatmentT(dat = dat,
                                  ntrt = ntrt,
                                  uniqtrt = uniqtrt,
@@ -264,12 +244,12 @@ mean_tmle <- function(ftime,
                                  returnModels = returnModels,
                                  gtol = gtol,
                                  trtOfInterest = trtOfInterest)
-    wideDat <- wideDataT(dat = dat, allJ = allJ)
+    wideDat <- wideDataT(dat = dat, allJ = allJ, t0= max(t0))
 
-  }
 
-  dat <- trtOut$dat
-  trtMod <- trtOut$trtMod
+
+    dat <- trtOut$dat
+    trtMod <- trtOut$trtMod
 
 
   ##### Need to look into the weights
@@ -277,49 +257,17 @@ mean_tmle <- function(ftime,
   if(!is.null(msm.formula)){
     # if msm, estimate stable weights
     msmWeightList <- estimateMSMWeights(dat = dat,
-                                    ntrt = ntrt,
-                                    uniqtrt = uniqtrt,
-                                    adjustVars = adjustVars,
-                                    msm.formula = msm.formula,
-                                    msm.weights = msm.weights,
-                                    returnModels = returnModels)
+                                        ntrt = ntrt,
+                                        uniqtrt = uniqtrt,
+                                        adjustVars = adjustVars,
+                                        msm.formula = msm.formula,
+                                        msm.weights = msm.weights,
+                                        returnModels = returnModels)
   }else{
     msmWeightList <- NULL
   }
 
 
-  if (is.null(trtofTime)){
-    dataList <- makeDataList(dat = dat, J = allJ, ntrt = ntrt, uniqtrt = uniqtrt,
-                             t0 = max(t0), bounds = bounds)
-
-
-    # estimate censoring
-    censOut <- estimateCensoring(dataList = dataList,
-                                 ntrt = ntrt,
-                                 uniqtrt = uniqtrt,
-                                 t0 = max(t0),
-                                 verbose = verbose,
-                                 adjustVars = adjustVars,
-                                 SL.ctime = SL.ctime,
-                                 glm.ctime = glm.ctime,
-                                 glm.family = glm.family,
-                                 returnModels = returnModels,
-                                 gtol = gtol)
-
-
-
-    dataList <- censOut$dataList
-    ctimeMod <- censOut$ctimeMod
-
-
-
-    wideDataList <- makeWideDataList(dat = dat, dataList = dataList,
-                                     adjustVars = adjustVars, t0 = t0,
-                                     allJ = allJ, ntrt = ntrt, uniqtrt = uniqtrt,
-                                     msm.formula = msm.formula,
-                                     msmWeightList = msmWeightList)
-
-  }else {
 
     censOut <- estimateCensoringT(dat = dat,
                                   adjustVars = varData,
@@ -337,21 +285,18 @@ mean_tmle <- function(ftime,
     ctimeMod <- censOut$ctimeMod
 
 
-#### still need to need decide what is the msmWeights
+    #### still need to need decide what is the msmWeights
 
     msmWeightList <- 1
 
     wideDataList <- makeWideDataListT(dat = dataList,
-                                     trt = trtData,
-                                     wideData = wideDat,
-                                     adjustVars = varData, t0 = max(t0),
-                                     allJ = allJ, ntrt = trtOfInterest, uniqtrt = uniqtrt,
-                                     trtofTime = trtofTime,
-                                     msm.formula = msm.formula,
-                                     msmWeightList = msmWeightList)
-
-
-      }
+                                      trt = trtData,
+                                      wideData = wideDat,
+                                      adjustVars = varData, t0 = t0,
+                                      allJ = allJ, ntrt = trtOfInterest, uniqtrt = uniqtrt,
+                                      trtofTime = trtofTime,
+                                      msm.formula = msm.formula,
+                                      msmWeightList = msmWeightList)
 
 
 
@@ -359,74 +304,78 @@ mean_tmle <- function(ftime,
 
 
 
-  # make wide form data with time confoning
-  if (!is.null(trtofTime)){wideDat <- wideDataT(dat = dat, allJ = J)}
-
-  # estimate/fluctuate iterated means
-    timeAndType <- NULL
-    if(length(s.list) > 1){
-      for(s in s.list){
-        timeAndType <- rbind(timeAndType, expand.grid( rev(s.list[which(s.list <= s)]) , ofInterestJ, s) )
-      }
-    }else{
-      timeAndType <- rbind(timeAndType, expand.grid( rev(seq_len(s.list)) , ofInterestJ, s.list) )
+    # estimate/fluctuate iterated means
+  timeAndType <- NULL
+  if(length(s.list) > 1){
+    for(s in s.list){
+      timeAndType <- rbind(timeAndType, expand.grid( rev(s.list[which(s.list <= s)]) , ofInterestJ, s) )
     }
-    # empty list for Qmod if returnModels
+  }else{
+    timeAndType <- rbind(timeAndType, expand.grid( rev(seq_len(s.list)) , ofInterestJ, s.list) )
+  }
+  # empty list for Qmod if returnModels
 
-    ftimeMod <- vector(mode = "list", length = length(ofInterestJ))
-    names(ftimeMod) <- paste0("J", ofInterestJ)
-    for(j in seq_along(ofInterestJ)) {
-      ftimeMod[[j]] <- vector(mode = "list", length = length(s.list))
-      names(ftimeMod[[j]]) <- paste0("t", s.list)
-    }
-
-
-    for(row.ind in seq_len(nrow(timeAndType))){
-      s <- timeAndType[row.ind,3]
-      i <- timeAndType[row.ind,1]
-      j <- timeAndType[row.ind,2]
-      estOut <- estimateIteratedMean(wideDataList = wideDataList,
-                                     t = i,
-                                     whichJ = j,
-                                     ntrt = ntrt,
-                                     uniqtrt = uniqtrt,
-                                     allJ = allJ,
-                                     t0 = s,
-                                     SL.ftime = SL.ftime,
-                                     adjustVars = adjustVars,
-                                     glm.ftime = glm.ftime,
-                                     verbose = verbose,
-                                     returnModels = returnModels,
-                                     bounds = bounds)
-      wideDataList <- estOut$wideDataList
-      # add renaming line
-      wideDataList <- lapply(wideDataList, function(wdl){
-        wdl[[paste0("Q", j, "star.", i , ".", s)]] <- wdl[[paste0("Q", j, ".", i , ".", s)]]
-        return(wdl)
-      })
-      eval(parse(text = paste0("ftimeMod$J", i, "$t",j, "s", s, "<- estOut$ftimeMod")))
-
-    }
+  ftimeMod <- vector(mode = "list", length = length(ofInterestJ))
+  names(ftimeMod) <- paste0("J", ofInterestJ)
+  for(j in seq_along(ofInterestJ)) {
+    ftimeMod[[j]] <- vector(mode = "list", length = length(s.list))
+    names(ftimeMod[[j]]) <- paste0("t", s.list)
+  }
 
 
-      wideDataList <- fluctuateIteratedMean(wideDataList = wideDataList,
-                                            t = max(t0),
-                                            whichJ = ofInterestJ[[1]],
-                                            ntrt = ntrt, uniqtrt = uniqtrt,
-                                            allJ = ofInterestJ, t0 = t0,
-                                            SL.ftime = SL.ftime,
-                                            glm.ftime = glm.ftime,
-                                            returnModels = returnModels,
-                                            bounds = bounds,
-                                            Gcomp = Gcomp,
-                                            msm.formula = msm.formula)
+  for(row.ind in seq_len(nrow(timeAndType))){
+    s <- timeAndType[row.ind,3]
+    i <- timeAndType[row.ind,1]
+    j <- timeAndType[row.ind,2]
+    estOut <- estimateIteratedMeanT(wideDataList = wideDataList,
+                                   t = i,
+                                   whichJ = j,
+                                   ntrt = ntrt,
+                                   uniqtrt = uniqtrt,
+                                   allJ = allJ,
+                                   t0 = s,
+                                   SL.ftime = SL.ftime,
+                                   adjustVars = varData,
+                                   trt = trtData,
+                                   trtOfInterest = trtOfInterest,
+                                   trtofTime =trtofTime,
+                                   glm.ftime = glm.ftime,
+                                   verbose = verbose,
+                                   returnModels = returnModels,
+                                   bounds = bounds)
+    wideDataList <- estOut$wideDataList
+    # add renaming line
+    #wideDataList <- lapply(wideDataList, function(wdl){
+    #  wdl[[paste0("Q", j, "star.", i , ".", s, ".0")]] <- wdl[[paste0("Q", j, ".", i , ".", s, ".0")]]
+    #  return(wdl)
+    #})
+    eval(parse(text = paste0("ftimeMod$J", i, "$t",j, "s", s, "<- estOut$ftimeMod")))
 
+  }
 
+###change the convergence check over loop of 2
+  wideDataList <- fluctuateIteratedMeanT(wideDataList = wideDataList,
+                                        t = max(t0),
+                                        whichJ = ofInterestJ[[1]],
+                                        ntrt = ntrt, uniqtrt = uniqtrt,
+                                        allJ = ofInterestJ, t0 = t0,
+                                        SL.ftime = SL.ftime,
+                                        #adjustVars = varData,
+                                        #trt = trtData,
+                                        glm.ftime = glm.ftime,
+                                        #trtOfInterest = trtOfInterest,
+                                        #trtofTime =trtofTime,
+                                        returnModels = returnModels,
+                                        bounds = bounds,
+                                        Gcomp = Gcomp,
+                                        msm.formula = msm.formula)
 
 
   # get point estimate
   if(is.null(msm.formula)){
-    est <- rowNames <- NULL
+    # need to figure out the estimates withouht MSM
+    # We do not use Qbar.star here
+     est <- rowNames <- NULL
     for(j in ofInterestJ) {
       for(z in uniqtrt) {
         thisEst <- eval(parse(text = paste("mean(wideDataList[[", z + 1, "]]$Q",
@@ -474,35 +423,42 @@ mean_tmle <- function(ftime,
     var <- t(as.matrix(infCurves)) %*% as.matrix(infCurves) / (n^2)
     row.names(var) <- colnames(var) <- rowNames
   }else{
-    # make a stacked vector of Qjstar.1
+    # make a stacked vector of Qj.1.r
     est <- rowNames <- NULL
 
     cfact <- wideDataList[[2]]
     temp.cfact.fill <- cfact[seq_len(length(ofInterestJ) * length(unique(trt))),]
     temp.cfact.fill$ftype <-  c(ofInterestJ)
-    temp.cfact.fill$trt <- c(sort(unique(trt)))
+  #  temp.cfact.fill$trt <- c(sort(unique(unlist(trtOfInterest[,-1]))))
 
     stackedOutcomeVec <- NULL
     stackedWeightVec <- NULL
     stackedModelMatrix <- NULL
-    msmWeightList.temp <- vector("list", length = nallJ*length(s.list))
-    outcomeList <- vector("list", length = nallJ*length(s.list))
-    modelMatrixList <- vector("list", length = nallJ*length(s.list))
+    msmWeightList.temp <- vector("list", length = nallJ*length(s.list)*ncol(trtOfInterest))
+    outcomeList <- vector("list", length = nallJ*length(s.list)*ncol(trtOfInterest))
+    modelMatrixList <- vector("list", length = nallJ*length(s.list)*ncol(trtOfInterest))
     j.ind <- 0
     for (s in s.list){
       for(j in  ofInterestJ){
-      j.ind <- j.ind+1
-      outcomeList[[j.ind]] <- lapply(wideDataList[2:length(wideDataList)], "[[", paste0("Q",j,"star.1", ".", s))
-      msmWeightList.temp[[j.ind]] <- lapply(msmWeightList[2:length(msmWeightList)], function(x){x})
-      modelMatrixList[[j.ind]] <- lapply(wideDataList[2:length(wideDataList)], function(wdl){
-        wdl$ftype <- j
-        wdl.new <- rbind(temp.cfact.fill, wdl)
-        wdl.new$ftime<- s
-        model.matrix(as.formula(paste0("N",j,".0 ~", msm.formula)), data = wdl.new)[-seq_len(nrow(temp.cfact.fill)),]
-      })
-      modelMatrixObs <- model.matrix(as.formula(paste0("N",j,".0 ~", msm.formula)), data = wideDataList[[1]])
+        for (r in seq_len(ncol(trtOfInterest))-1){
+        j.ind <- j.ind+1
+        outcomeList[[j.ind]] <- lapply(wideDataList[2:length(wideDataList)], "[[", paste0("Q",j,".1", ".", s,".",r))
+
+        ## need to decide the weights
+        #msmWeightList.temp[[j.ind]] <- lapply(msmWeightList[2:length(msmWeightList)], function(x){x})
+        msmWeightList.temp[[j.ind]] <- 1
+
+        modelMatrixList[[j.ind]] <- lapply(wideDataList[2:length(wideDataList)], function(wdl){
+          wdl$ftype <- j
+          wdl.new <- rbind(temp.cfact.fill, wdl)
+          wdl.new$ftime<- s
+          model.matrix(as.formula(paste0("N",j,".0 ~", msm.formula)), data = wdl.new)[-seq_len(nrow(temp.cfact.fill)),]
+        })
+        modelMatrixObs <- model.matrix(as.formula(paste0("N",j,".0 ~", msm.formula)), data = wideDataList[[1]])
+        }
       }
     }
+
 
     stackedOutcomeVec <- Reduce("c" ,Reduce("c", lapply(outcomeList, function(x){x})))
     stackedWeightVec  <- Reduce("c" ,Reduce("c", lapply(msmWeightList.temp, function(x){x})))
@@ -519,7 +475,7 @@ mean_tmle <- function(ftime,
 
     suppressWarnings(
       fit <- glm.fit(x = stackedModelMatrix, y = stackedOutcomeVec,
-                     weights = stackedWeightVec, family = msm.family)
+                     weights = 1, family = msm.family)
     )
     est <- fit$coef
 
@@ -529,106 +485,106 @@ mean_tmle <- function(ftime,
 
     modelMatrixObs <- modelMatrixObs[, names(est)]
 
-      # compute co-variance estimate
-      msm.p <- length(est)
-      new.modelMatrixList <- NULL
-      new.msmWeightList <- NULL
-      new.outcomeList <- NULL
-      for(n.list in seq_len(length(modelMatrixList))){
-        new.modelMatrixList <- append(new.modelMatrixList, modelMatrixList[[n.list]])
-        new.msmWeightList <- append(new.msmWeightList, msmWeightList.temp[[n.list]])
-        new.outcomeList <- append(new.outcomeList, outcomeList[[n.list]])
-      }
-      if(msm.family$family == "gaussian"){
-        fittedValueList <- lapply(new.modelMatrixList, function(mm){
-          mm %*% matrix(est)
-        })
-        derivList <- lapply(modelMatrixList, function(mm){
-          rep(1, n)
-        })
-        fittedValues <- modelMatrixObs %*% matrix(est)
-        deriv <- rep(1, n)
-      }else if(msm.family$family == "binomial"){
-        fittedValueList <- lapply(new.modelMatrixList, function(mm){
-          plogis(mm %*% matrix(est))
-        })
-        derivList <- lapply(fittedValueList, function(fitted_value){
-          fitted_value * (1 - fitted_value)
-        })
-        fittedValues <- plogis(modelMatrixObs %*% matrix(est))
-        deriv <- fittedValues * (1 - fittedValues)
-      }
-      # mapply goes over values of z
-      # apply goes over i = 1,...,n
+    # compute co-variance estimate
+    msm.p <- length(est)
+    new.modelMatrixList <- NULL
+    new.msmWeightList <- NULL
+    new.outcomeList <- NULL
+    for(n.list in seq_len(length(modelMatrixList))){
+      new.modelMatrixList <- append(new.modelMatrixList, modelMatrixList[[n.list]])
+      new.msmWeightList <- append(new.msmWeightList, msmWeightList.temp[[n.list]])
+      new.outcomeList <- append(new.outcomeList, outcomeList[[n.list]])
+    }
+    if(msm.family$family == "gaussian"){
+      fittedValueList <- lapply(new.modelMatrixList, function(mm){
+        mm %*% matrix(est)
+      })
+      derivList <- lapply(modelMatrixList, function(mm){
+        rep(1, n)
+      })
+      fittedValues <- modelMatrixObs %*% matrix(est)
+      deriv <- rep(1, n)
+    }else if(msm.family$family == "binomial"){
+      fittedValueList <- lapply(new.modelMatrixList, function(mm){
+        plogis(mm %*% matrix(est))
+      })
+      derivList <- lapply(fittedValueList, function(fitted_value){
+        fitted_value * (1 - fitted_value)
+      })
+      fittedValues <- plogis(modelMatrixObs %*% matrix(est))
+      deriv <- fittedValues * (1 - fittedValues)
+    }
+    # mapply goes over values of z
+    # apply goes over i = 1,...,n
 
 
-      cQ <- Reduce("+", mapply(mw = new.msmWeightList,
-                               mm = new.modelMatrixList, dl = derivList, FUN = function(mw, mm, dl){
-                                 Reduce("+", lapply(apply(cbind(mw, dl, mm), 1, function(x){
-                                   list(x[1] * x[2] * tcrossprod(matrix(x[3:(msm.p+2)])))
-                                 }),"[[",1))
-                               }, SIMPLIFY = FALSE)) / n
-      # cQ <- Reduce("+", lapply(apply(cbind(msmWeightList[[1]], deriv, modelMatrixObs), 1, function(x){
-      #   list(x[1] * x[2] * tcrossprod(matrix(x[3:(msm.p+2)])))
-      # }), "[[", 1)) / n
-      # TO DO: Add ginv tryCatch?
-      cQ_inv <- tryCatch(solve(cQ), error = function(x){ MASS::ginv(cQ) })
-      # first piece of EIF
-      sumD1_allZ <- Reduce("+", mapply(mw = new.msmWeightList, fv = fittedValueList,
-                                       ol =new.outcomeList, mm = new.modelMatrixList, function(mw, fv, ol, mm){
-                                         oneZ <- apply(cbind(mw, fv, ol, mm), 1, function(x){
-                                           # weight * (outcome - fitted) * model matrix
-                                           x[1] * (x[3] - x[2]) * x[4:(msm.p+3)]
-                                         })
-                                         return(oneZ)
-                                       }, SIMPLIFY = FALSE))
+    cQ <- Reduce("+", mapply(mw = new.msmWeightList,
+                             mm = new.modelMatrixList, dl = derivList, FUN = function(mw, mm, dl){
+                               Reduce("+", lapply(apply(cbind(mw, dl, mm), 1, function(x){
+                                 list(x[1] * x[2] * tcrossprod(matrix(x[3:(msm.p+2)])))
+                               }),"[[",1))
+                             }, SIMPLIFY = FALSE)) / n
+    # cQ <- Reduce("+", lapply(apply(cbind(msmWeightList[[1]], deriv, modelMatrixObs), 1, function(x){
+    #   list(x[1] * x[2] * tcrossprod(matrix(x[3:(msm.p+2)])))
+    # }), "[[", 1)) / n
+    # TO DO: Add ginv tryCatch?
+    cQ_inv <- tryCatch(solve(cQ), error = function(x){ MASS::ginv(cQ) })
+    # first piece of EIF
+    sumD1_allZ <- Reduce("+", mapply(mw = new.msmWeightList, fv = fittedValueList,
+                                     ol =new.outcomeList, mm = new.modelMatrixList, function(mw, fv, ol, mm){
+                                       oneZ <- apply(cbind(mw, fv, ol, mm), 1, function(x){
+                                         # weight * (outcome - fitted) * model matrix
+                                         x[1] * (x[3] - x[2]) * x[4:(msm.p+3)]
+                                       })
+                                       return(oneZ)
+                                     }, SIMPLIFY = FALSE))
 
-      D1 <- cQ_inv %*% sumD1_allZ
-      # sanity check: rowMeans of D1 should be small
-      # other pieces of EIF
+    D1 <- cQ_inv %*% sumD1_allZ
+    # sanity check: rowMeans of D1 should be small
+    # other pieces of EIF
 
-      D_allt <- matrix(0, nrow = msm.p, ncol = n)
+    D_allt <- matrix(0, nrow = msm.p, ncol = n)
 
-      # probably need loop over all J here...
+    # probably need loop over all J here...
 
-      for(j in ofInterestJ){
-        for(s in s.list){
-          for(t in 1:s){
-        # TO DO: this could be done more efficiently
-            if(t == s){
+    for(j in ofInterestJ){
+      for(s in s.list){
+        for(t in 1:s){
+          # TO DO: this could be done more efficiently
+          if(t == s){
             outcome_tplus1 <- wideDataList[[1]][,paste0("N",j,".",t)]
-            }else{
-          outcome_tplus1 <- wideDataList[[1]][,paste0("Q",j,"star.",t+1, ".", s)]}
+          }else{
+            outcome_tplus1 <- wideDataList[[1]][,paste0("Q",j,"star.",t+1, ".", s)]}
           # outcomeList_tplus1 <- lapply(wideDataList[2:length(wideDataList)], function(x){
           #   as.numeric(x[,paste0("Q",j,"star.",t+1)])
           # })
-        # outcomeList_t <- lapply(wideDataList[2:length(wideDataList)], function(x){
-        #   as.numeric(x[,paste0("Q",j,"star.",t)])
-        # })
-        outcome_t <- wideDataList[[1]][,paste0("Q",j,"star.",t, ".", s)]
+          # outcomeList_t <- lapply(wideDataList[2:length(wideDataList)], function(x){
+          #   as.numeric(x[,paste0("Q",j,"star.",t)])
+          # })
+          outcome_t <- wideDataList[[1]][,paste0("Q",j,"star.",t, ".", s)]
 
-        cleverCovariates <- wideDataList[[1]][,paste0("H",j,".", 1:msm.p,".",t, ".", s,".obs")]
-        # cleverCovariateList <- lapply(wideDataList[2:length(wideDataList)], "[", i = 1:n, j = paste0("H",1:msm.p,".",t,".obs"))
-        # Dt_allZ <- Reduce("+", mapply(otp1 = outcomeList_tplus1, ot = outcomeList_t, cc = cleverCovariateList, FUN = function(otp1, ot, cc){
-        #   tmp <- cbind(otp1, ot, cc)
-        #   Dt_z <- apply(tmp, 1, function(x){
-        #     (x[1] - x[2]) * x[3:(msm.p+2)]
-        #   })
-        #   return(Dt_z)
-        # }, SIMPLIFY = FALSE))
-        tmp <- cbind(outcome_tplus1, outcome_t, cleverCovariates)
-        Dt_z <- apply(tmp, 1, function(x){
-          (x[1] - x[2]) * x[3:(msm.p+2)]
-        })
-        D_allt <- D_allt + Dt_z
-          }
+          cleverCovariates <- wideDataList[[1]][,paste0("H",j,".", 1:msm.p,".",t, ".", s,".obs")]
+          # cleverCovariateList <- lapply(wideDataList[2:length(wideDataList)], "[", i = 1:n, j = paste0("H",1:msm.p,".",t,".obs"))
+          # Dt_allZ <- Reduce("+", mapply(otp1 = outcomeList_tplus1, ot = outcomeList_t, cc = cleverCovariateList, FUN = function(otp1, ot, cc){
+          #   tmp <- cbind(otp1, ot, cc)
+          #   Dt_z <- apply(tmp, 1, function(x){
+          #     (x[1] - x[2]) * x[3:(msm.p+2)]
+          #   })
+          #   return(Dt_z)
+          # }, SIMPLIFY = FALSE))
+          tmp <- cbind(outcome_tplus1, outcome_t, cleverCovariates)
+          Dt_z <- apply(tmp, 1, function(x){
+            (x[1] - x[2]) * x[3:(msm.p+2)]
+          })
+          D_allt <- D_allt + Dt_z
         }
       }
-      # sanity check: rowMeans of D_allZ_allt should be small
-      D2 <- cQ_inv %*% D_allt
-      infCurves <- D1 + D2
-      var <- tcrossprod(infCurves)/n^2
-      meanIC <- rowMeans(infCurves)
+    }
+    # sanity check: rowMeans of D_allZ_allt should be small
+    D2 <- cQ_inv %*% D_allt
+    infCurves <- D1 + D2
+    var <- tcrossprod(infCurves)/n^2
+    meanIC <- rowMeans(infCurves)
 
   }
   out <- list(est = est, var = var, meanIC = meanIC, ic = infCurves,
