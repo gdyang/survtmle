@@ -353,7 +353,7 @@ mean_tmle_T <- function(ftime,
 
   }
 
-###change the convergence check over loop of 2
+###change the convergence check
   wideDataList <- fluctuateIteratedMeanT(wideDataList = wideDataList,
                                         t = max(t0),
                                         whichJ = ofInterestJ[[1]],
@@ -475,7 +475,10 @@ mean_tmle_T <- function(ftime,
 
     suppressWarnings(
       fit <- glm.fit(x = stackedModelMatrix, y = stackedOutcomeVec,
-                     weights = 1, family = msm.family)
+                     #supprised weights here
+                     #weights = 1,
+                     family = msm.family)
+
     )
     est <- fit$coef
 
@@ -550,20 +553,21 @@ mean_tmle_T <- function(ftime,
     for(j in ofInterestJ){
       for(s in s.list){
         for(t in 1:s){
+          for  (r in seq_len(ncol(trtOfInterest))-1) {
           # TO DO: this could be done more efficiently
-          if(t == s){
-            outcome_tplus1 <- wideDataList[[1]][,paste0("N",j,".",t)]
-          }else{
-            outcome_tplus1 <- wideDataList[[1]][,paste0("Q",j,"star.",t+1, ".", s)]}
+            if(t == s){
+              outcome_tplus1 <- wideDataList[[1]][,paste0("N",j,".",t)]
+            }else{
+              outcome_tplus1 <- wideDataList[[1]][,paste0("Q",j,".",t+1, ".", s, ".", r)]}
           # outcomeList_tplus1 <- lapply(wideDataList[2:length(wideDataList)], function(x){
           #   as.numeric(x[,paste0("Q",j,"star.",t+1)])
           # })
           # outcomeList_t <- lapply(wideDataList[2:length(wideDataList)], function(x){
           #   as.numeric(x[,paste0("Q",j,"star.",t)])
           # })
-          outcome_t <- wideDataList[[1]][,paste0("Q",j,"star.",t, ".", s)]
+            outcome_t <- wideDataList[[1]][,paste0("Q",j,".",t, ".", s, ".", r)]
 
-          cleverCovariates <- wideDataList[[1]][,paste0("H",j,".", 1:msm.p,".",t, ".", s,".obs")]
+            cleverCovariates <- wideDataList[[1]][,paste0("H",j,".", 1:msm.p,".",t, ".", s,".", r,".obs")]
           # cleverCovariateList <- lapply(wideDataList[2:length(wideDataList)], "[", i = 1:n, j = paste0("H",1:msm.p,".",t,".obs"))
           # Dt_allZ <- Reduce("+", mapply(otp1 = outcomeList_tplus1, ot = outcomeList_t, cc = cleverCovariateList, FUN = function(otp1, ot, cc){
           #   tmp <- cbind(otp1, ot, cc)
@@ -577,6 +581,7 @@ mean_tmle_T <- function(ftime,
             (x[1] - x[2]) * x[3:(msm.p+2)]
           })
           D_allt <- D_allt + Dt_z
+          }
         }
       }
     }

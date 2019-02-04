@@ -27,7 +27,7 @@ estimateCensoringT <- function(dat, adjustVars, glm.trt = NULL,trt, SL.trt = NUL
 
 
         var_include <- NULL
-        for (var.ind in trtofTime[trtofTime <= t.ind]){
+        for (var.ind in trtofTime[trtofTime < t.ind]){
           var_include <- c(var_include,colnames(varData)[grepl(paste0("t",var.ind), colnames(varData))])
         }
 

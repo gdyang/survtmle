@@ -68,14 +68,14 @@
 
 estimateIteratedMeanT <- function(wideDataList, t, whichJ, allJ, t0, adjustVars, trt,
                                  SL.ftime = NULL, glm.ftime = NULL, verbose,
-                                 returnModels = FALSE, bounds = NULL, 
+                                 returnModels = FALSE, bounds = NULL,
                                  trtofTime=NULL #### new
                                  , ...){
   ## determine who to include in estimation
   include <- rep(TRUE, nrow(wideDataList[[1]]))
   n_regimen <-ncol(trtOfInterest)-1
   regimen <- trtOfInterest[-1,]
-  
+
   if(t != 1) {
     for(j in allJ) {
       # exclude previously failed subjects
@@ -84,11 +84,11 @@ estimateIteratedMeanT <- function(wideDataList, t, whichJ, allJ, t0, adjustVars,
     # exclude previously censored subjects
     include[wideDataList[[1]][[paste0("C.",t-1)]]==1] <- FALSE
   }
-  
+
   ## determine the outcome for the regression
   outcomeName <- ifelse(t == t0, paste0("N", whichJ, ".", t0),
                         paste0("Q", whichJ, ".", t + 1, ".", t0, ".0"))
-  
+
   ## create an indicator of any failure prior to t
   wideDataList <- lapply(wideDataList, function(x, t){
     if(length(allJ) > 1) {
@@ -99,7 +99,7 @@ estimateIteratedMeanT <- function(wideDataList, t, whichJ, allJ, t0, adjustVars,
     }
     x
   }, t = t)
-  
+
   lj.t <- paste0("l", whichJ, ".", t)
   uj.t <- paste0("u", whichJ, ".", t)
   Qtildej.t <- paste0("Qtilde", whichJ, ".", t)
@@ -107,46 +107,47 @@ estimateIteratedMeanT <- function(wideDataList, t, whichJ, allJ, t0, adjustVars,
   Qj.t <- paste0("Q", whichJ, ".", t, ".", t0, ".0")
   NnotJ.tm1 <- paste0("NnotJ.", t - 1)
   Qform <- paste(outcomeName, "~", glm.ftime, sep = " ")
-  
+
   #### creating matrix for past covariates t-1 and treatment up to t-1
 
-    trt_include <-c("id", paste0("trt_t", trtofTime[trtofTime <= t]))
-    trt_past <- trt[ , trt_include]
-    
-  
+  trt_include <-c("id", paste0("trt_t", trtofTime[trtofTime < t]))
+  trt_past <- trt[ , trt_include]
+
+
   var_include <- NULL
-  for (var.ind in trtofTime[trtofTime <= t]){
+  for (var.ind in trtofTime[trtofTime < t]){
     var_include <- c(var_include,colnames(varData)[grepl(paste0("t",var.ind), colnames(varData))])
   }
-  
+
   var_past <- adjustVars[ , c("id", var_include)]
-  
+
   trt_var_past <- merge(trt_past, var_past, by = "id")[,-1]
-  
-  
+
+
   ## GLM code
   if(is.null(SL.ftime)) {
     if(is.null(bounds)) { # with no bounds
       suppressWarnings({
         Qmod <- fast_glm(reg_form = stats::as.formula(Qform),
-                         data = cbind(wideDataList[[1]][include, ], trt_var_past[include, ]),
+                         data = cbind(wideDataList[[1]][include, outcomeName, drop =F],
+                                           trt_var_past[include, ]),
                          family = stats::binomial())
         if (unique(class(Qmod) %in% c("glm", "lm"))) {
           Qmod <- cleanglm(Qmod)
         }
-        
+
         wideDataList <- lapply(wideDataList, function(x, whichJ, t) {
           suppressWarnings(
           ###### predict Q bar under observed treatment
             x[[Qj.t]] <- x[[Nj.tm1]] + (1-x[[NnotJ.tm1]]-x[[Nj.tm1]])*
               predict(Qmod,newdata=trt_var_past,type="response")
           )
-          
+
           ###### predict Q bar under each treach regrimen
           for(regimen_ind in 1:n_regimen){
             Qj.t.r <- paste0("Q", whichJ, ".", t, ".", t0, ".", regimen_ind)
             trt_data_pred <- trt_var_past
-            for(regimen_time in 1:length(trtofTime[which(trtofTime <= t)])){
+            for(regimen_time in 1:length(trtofTime[which(trtofTime < t)])){
               trt_data_pred[,paste0("trt_t",trtofTime[regimen_time])] <- regimen[regimen_time,regimen_ind]
             }
             suppressWarnings(
@@ -154,13 +155,14 @@ estimateIteratedMeanT <- function(wideDataList, t, whichJ, allJ, t0, adjustVars,
               predict(Qmod,newdata=trt_data_pred,type="response")
             )
             }
-          
+
           x
         }, t = t, whichJ = whichJ)
       })
     } else { # with bounds
       X <- stats::model.matrix(stats::as.formula(Qform),
-                               data = cbind(wideDataList[[1]][include, ], trt_var_past[include, ]))
+                               data = cbind(wideDataList[[1]][include, outcomeName, drop =F]
+                                            , trt_var_past[include, ]))
       Ytilde <- (wideDataList[[1]][include, outcomeName] -
                    wideDataList[[1]][[lj.t]][include]) /
         (wideDataList[[1]][[uj.t]][include] -
@@ -169,8 +171,8 @@ estimateIteratedMeanT <- function(wideDataList, t, whichJ, allJ, t0, adjustVars,
                            Y = Ytilde, X = X, method = "BFGS", gr = grad,
                            control = list(reltol = 1e-7, maxit = 50000))
       beta <- Qmod$par
-      
-    
+
+
       #### need to figure out what to do with the missing value in the trt_var_past
       wideDataList <- lapply(wideDataList, function(x, j, t) {
         newX <- stats::model.matrix(stats::as.formula(Qform), data = trt_var_past )
@@ -183,7 +185,7 @@ estimateIteratedMeanT <- function(wideDataList, t, whichJ, allJ, t0, adjustVars,
     if(is.null(bounds)) { # with no bounds
       # some stability checks
       # number of unique outcome values
-      nUniq <- length(unique(wideDataList[[1]][include,outcomeName]))
+      nUniq <- length(unique(wideDataList[[1]][include, outcomeName]))
       cvControl <- SuperLearner::SuperLearner.CV.control()
       if(t == t0) {
         # if there are less than 2 events at t0, just fit regression using only Z
@@ -193,20 +195,21 @@ estimateIteratedMeanT <- function(wideDataList, t, whichJ, allJ, t0, adjustVars,
           suppressWarnings({
             Qform_trt <- paste(outcomeName, "~", "trt", sep = " ")
             Qmod <- fast_glm(reg_form = stats::as.formula(Qform_trt),
-                             data = cbind(wideDataList[[1]][include, ], trt_var_past[include, ]),
+                             data = cbind(wideDataList[[1]][include, outcomeName, drop =F],
+                                          trt_var_past[include, ]),
                              family = stats::gaussian())
             wideDataList <- lapply(wideDataList, function(x, whichJ, t) {
               suppressWarnings(
                 x[[Qj.t]] <- x[[Nj.tm1]] + (1-x[[NnotJ.tm1]]- x[[Nj.tm1]]) *
                   predict(Qmod,newdata=trt_var_past)
               )
-              
-              
+
+
               ###### predict Q bar under each treach regrimen
               for(regimen_ind in 1:n_regimen){
                 Qj.t.r <- paste0("Q", whichJ, ".", t, ".", t0, ".", regimen_ind)
                 trt_data_pred <- trt_var_past
-                for(regimen_time in 1:length(trtofTime[which(trtofTime <= t)])){
+                for(regimen_time in 1:length(trtofTime[which(trtofTime < t)])){
                   trt_data_pred[,paste0("trt_t",trtofTime[regime_time])] <- regimen[regimen_time,regimen_ind]
                 }
                 suppressWarnings(
@@ -214,7 +217,7 @@ estimateIteratedMeanT <- function(wideDataList, t, whichJ, allJ, t0, adjustVars,
                     predict(Qmod,newdata=trt_data_pred,type="response")
                 )
               }
-              
+
               x
             }, t = t, whichJ = whichJ)
           })
@@ -249,7 +252,7 @@ estimateIteratedMeanT <- function(wideDataList, t, whichJ, allJ, t0, adjustVars,
             x[[Qj.t]] <- x[[Nj.tm1]] + (1 - x[[Nj.tm1]] - x[[NnotJ.tm1]]) *
               predict(Qmod, newdata = trt_var_past, onlySL = TRUE)$pred
           )
-          
+
           ###### predict Q bar under each treach regrimen
           for(regimen_ind in 1:n_regimen){
             Qj.t.r <- paste0("Q", whichJ, ".", t, ".", t0, ".", regimen_ind)
@@ -262,8 +265,8 @@ estimateIteratedMeanT <- function(wideDataList, t, whichJ, allJ, t0, adjustVars,
                 predict(Qmod,newdata=trt_data_pred,type="response")
             )
           }
-          
-          
+
+
           x
         }, t = t, whichJ = whichJ)
         }

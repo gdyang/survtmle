@@ -236,34 +236,42 @@ fluctuateIteratedMeanT <- function(wideDataList, t, uniqtrt, whichJ, allJ, t0,
 
 
 
-          D_allt <- matrix(0, nrow = msm.p, ncol = n)
-          for(j in allJ){
-            for(s in s.list){
-              for(t in 1:s){
-                for  (r in seq_len(ncol(trtOfInterest))-1) {
-                # TO DO: this could be done more efficiently
-                if(t == s){
-                  outcome_tplus1 <- wideDataList[[1]][,paste0("N",j,".",t)]
-                }else{
-                  outcome_tplus1 <- wideDataList[[1]][,paste0("Q",j,".",t+1, ".", s, ".", r)]}
+          ##### another way to check the convergence
 
-                outcome_t <- wideDataList[[1]][,paste0("Q",j,".",t, ".", s, ".", r)]
+          a <-  predict(flucMod, stack.glm.data, type = "response")
+          b <- (a - stack.glm.data$offset)* stack.glm.data[,-c(1,2)]
+          D_ind <- max(abs(colMeans(b)))
 
-                cleverCovariates <- wideDataList[[1]][,paste0("H",j,".", 1:msm.p,".",t, ".", s,".", r,".obs")]
 
-                tmp <- cbind(outcome_tplus1, outcome_t, cleverCovariates)
-                Dt_z <- apply(tmp, 1, function(x){
-                  (x[1] - x[2]) * x[3:(msm.p+2)]
-                })
-                D_allt <- D_allt + Dt_z
-                }
-              }
-            }
-          }
-
-          D_ind <- max(abs(apply(D_allt, 1, mean, na.rm =T)))
+          # #######
+          # D_allt <- matrix(0, nrow = msm.p, ncol = n)
+          # for(j in allJ){
+          #   for(s in s.list){
+          #     for(t in 1:s){
+          #       for  (r in seq_len(ncol(trtOfInterest))-1) {
+          #       # TO DO: this could be done more efficiently
+          #       if(t == s){
+          #         outcome_tplus1 <- wideDataList[[1]][,paste0("N",j,".",t)]
+          #       }else{
+          #         outcome_tplus1 <- wideDataList[[1]][,paste0("Q",j,".",t+1, ".", s, ".", r)]}
+          #
+          #       c <- wideDataList[[1]][,paste0("Q",j,".",t, ".", s, ".", r)]
+          #
+          #       cleverCovariates <- wideDataList[[1]][,paste0("H",j,".", 1:msm.p,".",t, ".", s,".", r,".obs")]
+          #       tmp <- cbind(outcome_tplus1, outcome_t, cleverCovariates)
+          #       tmp[is.na(tmp)] <- 0
+          #       Dt_z <- apply(tmp, 1, function(x){
+          #         (x[1] - x[2]) * x[3:(msm.p+2)]
+          #       })
+          #       D_allt <- D_allt + Dt_z
+          #       }
+          #     }
+          #   }
+          # }
+          #
+          # D_ind <- max(abs(apply(D_allt, 1, mean, na.rm =T)))
           print(D_ind)
-          if(loop.ind >= 2){D_ind <- 0}
+          if(loop.ind >= 5){D_ind <- 0}
         }
       }
     }else {

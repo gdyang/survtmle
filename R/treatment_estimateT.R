@@ -96,10 +96,11 @@ for (t.ind in trtofTime){
 
 
       if(regime[which(trtofTime == t.ind ),regime_ind] == 1){
-        dat[id_include, paste0("g_", regime_ind, "_t", t.ind)] <- pred* prev_g
+        dat[id_include, paste0("g_", regime_ind, "_t", t.ind)] <-
+          pred* prev_g
       }else{
-        dat[id_include, paste0("g_", regime_ind, "_t", t.ind)] <- (1-pred)*prev_g
-      }
+        dat[id_include, paste0("g_", regime_ind, "_t", t.ind)] <-
+          (1-pred)*prev_g
     }
 
 
@@ -121,11 +122,12 @@ for (t.ind in trtofTime){
   if(t.ind == 0){prev_g_obs = 1}else{
     prev_t_obs <- max(trtofTime[trtofTime < t.ind ])
     prev_g_obs <- dat[id_include, paste0("g_obsz_t", prev_t_obs)]}
-    dat[id_include, paste0("g_obsz_t", t.ind)] <- ifelse(thisY == 1, pred_obsz, 1 - pred_obsz)*prev_g_obs
+    dat[id_include, paste0("g_obsz_t", t.ind)] <-
+      ifelse(thisY == 1, pred_obsz, 1 - pred_obsz)*prev_g_obs
 
 }
 
-
+}
 
 
 out <- list()
