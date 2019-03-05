@@ -74,15 +74,15 @@ estimateIteratedMeanT <- function(wideDataList, t, whichJ, allJ, t0, adjustVars,
   ## determine who to include in estimation
   include <- rep(TRUE, nrow(wideDataList[[1]]))
   n_regimen <-ncol(trtOfInterest)-1
-  regimen <- trtOfInterest[-1,]
+  regimen <- trtOfInterest[,-1]
 
   if(t != 1) {
     for(j in allJ) {
       # exclude previously failed subjects
-      include[wideDataList[[1]][[paste0("N",j,".",t-1)]]==1] <- FALSE
+      include[wideDataList[[1]][[paste0("N",j,".",t)]]==1] <- FALSE
     }
     # exclude previously censored subjects
-    include[wideDataList[[1]][[paste0("C.",t-1)]]==1] <- FALSE
+    include[wideDataList[[1]][[paste0("C.",t)]]==1] <- FALSE
   }
 
   ## determine the outcome for the regression
@@ -142,13 +142,12 @@ estimateIteratedMeanT <- function(wideDataList, t, whichJ, allJ, t0, adjustVars,
             x[[Qj.t]] <- x[[Nj.tm1]] + (1-x[[NnotJ.tm1]]-x[[Nj.tm1]])*
               predict(Qmod,newdata=trt_var_past,type="response")
           )
-
           ###### predict Q bar under each treach regrimen
           for(regimen_ind in 1:n_regimen){
             Qj.t.r <- paste0("Q", whichJ, ".", t, ".", t0, ".", regimen_ind)
             trt_data_pred <- trt_var_past
             for(regimen_time in 1:length(trtofTime[which(trtofTime < t)])){
-              trt_data_pred[,paste0("trt_t",trtofTime[regimen_time])] <- regimen[regimen_time,regimen_ind]
+              trt_data_pred[include, paste0("trt_t",trtofTime[regimen_time])] <- regimen[regimen_time,regimen_ind]
             }
             suppressWarnings(
             x[[Qj.t.r]] <- x[[Nj.tm1]] + (1-x[[NnotJ.tm1]]-x[[Nj.tm1]])*

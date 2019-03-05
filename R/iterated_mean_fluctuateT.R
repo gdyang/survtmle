@@ -78,10 +78,10 @@ fluctuateIteratedMeanT <- function(wideDataList, t, uniqtrt, whichJ, allJ, t0,
   if(t != 1) {
     for(j in allJ) {
       # exclude previously failed subjects
-      include[wideDataList[[1]][[paste0("N",j,".",t-1)]] == 1] <- FALSE
+      include[wideDataList[[1]][[paste0("N",j,".",t)]] == 1] <- FALSE
     }
     # exclude previously censored subjects
-    include[wideDataList[[1]][[paste0("C.",t-1)]]==1] <- FALSE
+    include[wideDataList[[1]][[paste0("C.",t)]]==1] <- FALSE
   }
 
   if(is.null(bounds)) {
@@ -172,7 +172,6 @@ fluctuateIteratedMeanT <- function(wideDataList, t, uniqtrt, whichJ, allJ, t0,
             }
 
 
-
             ### stack over the observed and treatment regimen of interest
             data.list.temp <- vector("list", ncol(trtOfInterest))
             for (r in seq_len(ncol(trtOfInterest))-1){
@@ -184,7 +183,6 @@ fluctuateIteratedMeanT <- function(wideDataList, t, uniqtrt, whichJ, allJ, t0,
 
               outcomeName.temp <- ifelse(t == t0, paste0("N", Jtype, ".", t0),
                                          paste0("Q", Jtype, ".", t + 1, ".", t0, ".",r))
-
               data.list.temp[[r+1]] <- wideDataList[[1]][include, c(outcomeName.temp, paste0("Q", Jtype,
                                                                                       ".", t,".", t0, ".",r ),  msm.p.names.temp)]
 
@@ -196,7 +194,7 @@ fluctuateIteratedMeanT <- function(wideDataList, t, uniqtrt, whichJ, allJ, t0,
           }
 
 
-          stack.glm.data<- Reduce(rbind, data.list)
+          stack.glm.data <- Reduce(rbind, data.list)
 
           flucForm <- paste0("outcome~ -1 + offset(stats::qlogis(offset)) +",
                              paste0(msm.p.names, collapse = "+"))
@@ -208,7 +206,7 @@ fluctuateIteratedMeanT <- function(wideDataList, t, uniqtrt, whichJ, allJ, t0,
                                   start = rep(0, ncol(stack.glm.data)-2))
           )
           epsilon <- matrix(flucMod$coefficients)
-
+          print(epsilon)
           # get predictions back
           for (i in seq_len(nrow(timeAndType))){
 
@@ -216,60 +214,63 @@ fluctuateIteratedMeanT <- function(wideDataList, t, uniqtrt, whichJ, allJ, t0,
             Jtype <- timeAndType[i,2]
             t0 <- timeAndType[i,3]
 
+            include <- rep(TRUE, n)
+            if(t != 1) {
+              for(j in allJ) {
+                # exclude previously failed subjects
+                include[wideDataList[[1]][[paste0("N",j,".",t)]] == 1] <- FALSE
+              }
+              # exclude previously censored subjects
+              include[wideDataList[[1]][[paste0("C.",t)]] == 1] <- FALSE
+            }
 
-            wideDataList <- lapply(wideDataList, function(x, t) {
+
+            wideDataList <- lapply(wideDataList, function(x, t, include) {
               x[[paste0("NnotJ.",t-1)]] <-
                 rowSums(cbind(rep(0, nrow(x)), x[, paste0('N', allJ[allJ != Jtype], '.', t - 1)]))
               for (r in seq_len(ncol(trtOfInterest))-1){
                 predCov <- as.matrix(x[,paste0("H", Jtype , ".", 1:msm.p,".",t, ".", t0, ".", r, ".pred")])
                 predOffset <- x[,paste0("Q", Jtype,".", t, ".", t0, ".",r)]
                 suppressWarnings(
-                  x[[paste0("Q", Jtype, ".", t, ".", t0, ".", r)]] <-
-                    x[[paste0("N",Jtype,".",t-1)]] + (1-x[[paste0("NnotJ.",t-1)]]-x[[paste0("N",Jtype,".",t-1)]])*
-                    plogis(qlogis(predOffset) + predCov %*% epsilon)
+                  x[[paste0("Q", Jtype, ".", t, ".", t0, ".", r)]][include]  <-
+                    x[[paste0("N",Jtype,".",t-1)]][include] + (1-x[[paste0("NnotJ.",t-1)]]-x[[paste0("N",Jtype,".",t-1)]])[include]*
+                    plogis(qlogis(predOffset[include]) + predCov[include,] %*% epsilon)
                 )
               }
               x
-            }, t = t)
+            }, t = t, include = include )
 
           }
 
 
 
-          ##### another way to check the convergence
+           #######
+           D_allt <- matrix(0, nrow = msm.p, ncol = n)
+           for(j in allJ){
+             for(s in s.list){
+               for(t in 1:s){
+                  for  (r in seq_len(ncol(trtOfInterest))-1) {
+                 # TO DO: this could be done more efficiently
+                  if(t == s){
+                    outcome_tplus1 <- wideDataList[[1]][,paste0("N",j,".",t)]
+                  }else{
+                    outcome_tplus1 <- wideDataList[[1]][,paste0("Q",j,".",t+1, ".", s, ".", r)]}
 
-          a <-  predict(flucMod, stack.glm.data, type = "response")
-          b <- (a - stack.glm.data$offset)* stack.glm.data[,-c(1,2)]
-          D_ind <- max(abs(colMeans(b)))
+                    outcome_t <- wideDataList[[1]][,paste0("Q",j,".",t, ".", s, ".", r)]
 
-
-          # #######
-          # D_allt <- matrix(0, nrow = msm.p, ncol = n)
-          # for(j in allJ){
-          #   for(s in s.list){
-          #     for(t in 1:s){
-          #       for  (r in seq_len(ncol(trtOfInterest))-1) {
-          #       # TO DO: this could be done more efficiently
-          #       if(t == s){
-          #         outcome_tplus1 <- wideDataList[[1]][,paste0("N",j,".",t)]
-          #       }else{
-          #         outcome_tplus1 <- wideDataList[[1]][,paste0("Q",j,".",t+1, ".", s, ".", r)]}
+                  cleverCovariates <- wideDataList[[1]][,paste0("H",j,".", 1:msm.p,".",t, ".", s,".", r,".obs")]
+                  tmp <- cbind(outcome_tplus1, outcome_t, cleverCovariates)
+                  tmp[is.na(tmp)] <- 0
+                  Dt_z <- apply(tmp, 1, function(x){
+                    (x[1] - x[2]) * x[3:(msm.p+2)]
+                  })
+                  D_allt <- D_allt + Dt_z
+                  }
+                }
+              }
+            }
           #
-          #       c <- wideDataList[[1]][,paste0("Q",j,".",t, ".", s, ".", r)]
-          #
-          #       cleverCovariates <- wideDataList[[1]][,paste0("H",j,".", 1:msm.p,".",t, ".", s,".", r,".obs")]
-          #       tmp <- cbind(outcome_tplus1, outcome_t, cleverCovariates)
-          #       tmp[is.na(tmp)] <- 0
-          #       Dt_z <- apply(tmp, 1, function(x){
-          #         (x[1] - x[2]) * x[3:(msm.p+2)]
-          #       })
-          #       D_allt <- D_allt + Dt_z
-          #       }
-          #     }
-          #   }
-          # }
-          #
-          # D_ind <- max(abs(apply(D_allt, 1, mean, na.rm =T)))
+          D_ind <- max(abs(apply(D_allt, 1, mean)))
           print(D_ind)
           if(loop.ind >= 5){D_ind <- 0}
         }

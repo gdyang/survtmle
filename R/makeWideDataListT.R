@@ -176,7 +176,7 @@ makeWideDataListT <- function(dat,
 
 ##### create indicator for following the treatment regimen till t-1
            past_t <- trtofTime[trtofTime <= t-1]
-           ind.r.t_minus1 <-  apply(wdl[,paste0("trt_t", past_t)], 1, function(x){
+           ind.r.t_minus1 <-  apply(wdl[,paste0("trt_t", past_t), drop = FALSE], 1, function(x){
               as.numeric(sum((x == trtOfInterest[(trtofTime <= t-1), paste0("regimen", r)] ) ) == length(past_t)) } )
 
            ind.r.t_minus1[is.na(ind.r.t_minus1)] <- 0

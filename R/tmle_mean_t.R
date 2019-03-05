@@ -198,10 +198,10 @@ mean_tmle_T <- function(ftime,
   n <- length(ftime)
   id <- seq_len(n)
   if (is.null(trtofTime)){
-    stop("Need to specific treatment of time")
+    stop("Need to specify treatment of time")
   } else {
     dat <- data.frame(id = id, ftime = ftime, ftype = ftype)
-    trtData <- trtDataframe(id = id, trt = trt,trtofTime = trtofTime)
+    trtData <- trtDataframe(id = id, trt = trt, trtofTime = trtofTime)
   }
 
 
@@ -304,7 +304,7 @@ mean_tmle_T <- function(ftime,
 
 
 
-    # estimate/fluctuate iterated means
+  # estimate/fluctuate iterated means
   timeAndType <- NULL
   if(length(s.list) > 1){
     for(s in s.list){
@@ -556,9 +556,12 @@ mean_tmle_T <- function(ftime,
           for  (r in seq_len(ncol(trtOfInterest))-1) {
           # TO DO: this could be done more efficiently
             if(t == s){
+              ### no missing value in N*
               outcome_tplus1 <- wideDataList[[1]][,paste0("N",j,".",t)]
             }else{
+              ### missing value in Qbar
               outcome_tplus1 <- wideDataList[[1]][,paste0("Q",j,".",t+1, ".", s, ".", r)]}
+
           # outcomeList_tplus1 <- lapply(wideDataList[2:length(wideDataList)], function(x){
           #   as.numeric(x[,paste0("Q",j,"star.",t+1)])
           # })
@@ -567,7 +570,9 @@ mean_tmle_T <- function(ftime,
           # })
             outcome_t <- wideDataList[[1]][,paste0("Q",j,".",t, ".", s, ".", r)]
 
+            msm.p <- sum(grepl(paste0("H", j, ".*.",t,".", s, ".",r, ".obs"), colnames(wideDataList[[1]])))
             cleverCovariates <- wideDataList[[1]][,paste0("H",j,".", 1:msm.p,".",t, ".", s,".", r,".obs")]
+
           # cleverCovariateList <- lapply(wideDataList[2:length(wideDataList)], "[", i = 1:n, j = paste0("H",1:msm.p,".",t,".obs"))
           # Dt_allZ <- Reduce("+", mapply(otp1 = outcomeList_tplus1, ot = outcomeList_t, cc = cleverCovariateList, FUN = function(otp1, ot, cc){
           #   tmp <- cbind(otp1, ot, cc)
@@ -577,6 +582,7 @@ mean_tmle_T <- function(ftime,
           #   return(Dt_z)
           # }, SIMPLIFY = FALSE))
           tmp <- cbind(outcome_tplus1, outcome_t, cleverCovariates)
+          temp[is.na(temp)] <- 0
           Dt_z <- apply(tmp, 1, function(x){
             (x[1] - x[2]) * x[3:(msm.p+2)]
           })
@@ -586,6 +592,7 @@ mean_tmle_T <- function(ftime,
       }
     }
     # sanity check: rowMeans of D_allZ_allt should be small
+
     D2 <- cQ_inv %*% D_allt
     infCurves <- D1 + D2
     var <- tcrossprod(infCurves)/n^2
