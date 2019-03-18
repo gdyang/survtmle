@@ -95,8 +95,8 @@ if(!is.null(bounds)){
     out$C <- 0
     out$C[out$id %in% censEvents &
             out$t >= out$ftime] <- 1
-    out$trt <- uniqtrt[i]
-    out$g_obsz <- out[[paste0("g_", uniqtrt[i])]]
+    #out$trt <- uniqtrt[i]
+    #out$g_obsz <- out[[paste0("g_", uniqtrt[i])]]
     # so all indicators pass
     out$ftime <- t0
 

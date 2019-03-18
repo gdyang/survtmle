@@ -167,7 +167,6 @@ makeWideDataListT <- function(dat,
 
 
 ###### Do we want to make msm.formula into a list
-
           msmModelMatrix <- stats::model.matrix(as.formula(paste0("N1.0 ~ ", msm.formula)), data = wdl.new)[-seq_len(nrow(temp.fill)),]
           msm.p <- dim(msmModelMatrix)[2]
 
