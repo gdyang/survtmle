@@ -78,7 +78,7 @@ fluctuateIteratedMeanT <- function(wideDataList, t, uniqtrt, whichJ, allJ, t0,
   if(t != 1) {
     for(j in allJ) {
       # exclude previously failed subjects
-      include[wideDataList[[1]][[paste0("N",j,".",t)]] == 1] <- FALSE
+      include[wideDataList[[1]][[paste0("N",j,".",t-1)]] == 1] <- FALSE
     }
     # exclude previously censored subjects
     include[wideDataList[[1]][[paste0("C.",t)]]==1] <- FALSE
@@ -165,7 +165,7 @@ fluctuateIteratedMeanT <- function(wideDataList, t, uniqtrt, whichJ, allJ, t0,
             if(t != 1) {
               for(j in allJ) {
                 # exclude previously failed subjects
-                include[wideDataList[[1]][[paste0("N",j,".",t)]] == 1] <- FALSE
+                include[wideDataList[[1]][[paste0("N",j,".",t-1)]] == 1] <- FALSE
               }
               # exclude previously censored subjects
               include[wideDataList[[1]][[paste0("C.",t)]] == 1] <- FALSE
@@ -174,7 +174,7 @@ fluctuateIteratedMeanT <- function(wideDataList, t, uniqtrt, whichJ, allJ, t0,
 
             ### stack over the observed and treatment regimen of interest
             data.list.temp <- vector("list", ncol(trtOfInterest))
-            for (r in seq_len(ncol(trtOfInterest))-1){
+            for (r in seq_len(ncol(trtOfInterest)-1)){
               msm.p <- sum(grepl(paste0("H", Jtype,".*",t, ".", t0,".",r ,".obs"), colnames(wideDataList[[1]])))
               msm.p.names <- paste0("H", seq_len(msm.p))
 
@@ -218,7 +218,7 @@ fluctuateIteratedMeanT <- function(wideDataList, t, uniqtrt, whichJ, allJ, t0,
             if(t != 1) {
               for(j in allJ) {
                 # exclude previously failed subjects
-                include[wideDataList[[1]][[paste0("N",j,".",t)]] == 1] <- FALSE
+                include[wideDataList[[1]][[paste0("N",j,".",t-1)]] == 1] <- FALSE
               }
               # exclude previously censored subjects
               include[wideDataList[[1]][[paste0("C.",t)]] == 1] <- FALSE
@@ -228,7 +228,7 @@ fluctuateIteratedMeanT <- function(wideDataList, t, uniqtrt, whichJ, allJ, t0,
             wideDataList <- lapply(wideDataList, function(x, t, include) {
               x[[paste0("NnotJ.",t-1)]] <-
                 rowSums(cbind(rep(0, nrow(x)), x[, paste0('N', allJ[allJ != Jtype], '.', t - 1)]))
-              for (r in seq_len(ncol(trtOfInterest))-1){
+              for (r in seq_len(ncol(trtOfInterest)-1)){
                 predCov <- as.matrix(x[,paste0("H", Jtype , ".", 1:msm.p,".",t, ".", t0, ".", r, ".pred")])
                 predOffset <- x[,paste0("Q", Jtype,".", t, ".", t0, ".",r)]
                 suppressWarnings(
@@ -238,7 +238,7 @@ fluctuateIteratedMeanT <- function(wideDataList, t, uniqtrt, whichJ, allJ, t0,
                 )
               }
               x
-            }, t = t, include = include )
+            }, t = t, include = include)
 
           }
 
@@ -249,7 +249,19 @@ fluctuateIteratedMeanT <- function(wideDataList, t, uniqtrt, whichJ, allJ, t0,
            for(j in allJ){
              for(s in s.list){
                for(t in 1:s){
-                  for  (r in seq_len(ncol(trtOfInterest))-1) {
+                 include <- rep(TRUE, n)
+                 if(t != 1) {
+                   for(j.inc  in allJ) {
+                     # exclude previously failed subjects
+                     include[wideDataList[[1]][[paste0("N",j.inc,".",t-1)]] == 1] <- FALSE
+                   }
+                   # exclude previously censored subjects
+                   include[wideDataList[[1]][[paste0("C.",t)]]==1] <- FALSE
+                 }
+
+                  for  (r in seq_len(ncol(trtOfInterest)-1)) {
+
+
                  # TO DO: this could be done more efficiently
                   if(t == s){
                     outcome_tplus1 <- wideDataList[[1]][,paste0("N",j,".",t)]
@@ -258,9 +270,9 @@ fluctuateIteratedMeanT <- function(wideDataList, t, uniqtrt, whichJ, allJ, t0,
 
                     outcome_t <- wideDataList[[1]][,paste0("Q",j,".",t, ".", s, ".", r)]
 
-                  cleverCovariates <- wideDataList[[1]][,paste0("H",j,".", 1:msm.p,".",t, ".", s,".", r,".obs")]
+                    cleverCovariates <- wideDataList[[1]][,paste0("H",j,".", 1:msm.p,".",t, ".", s,".", r,".obs")]
                   tmp <- cbind(outcome_tplus1, outcome_t, cleverCovariates)
-                  tmp[is.na(tmp)] <- 0
+                  tmp[-include, ] <- 0
                   Dt_z <- apply(tmp, 1, function(x){
                     (x[1] - x[2]) * x[3:(msm.p+2)]
                   })
@@ -272,7 +284,7 @@ fluctuateIteratedMeanT <- function(wideDataList, t, uniqtrt, whichJ, allJ, t0,
           #
           D_ind <- max(abs(apply(D_allt, 1, mean)))
           print(D_ind)
-          if(loop.ind >= 5){D_ind <- 0}
+          if(loop.ind >= 10){D_ind <- 0}
         }
       }
     }else {

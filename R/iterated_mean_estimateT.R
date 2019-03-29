@@ -79,7 +79,7 @@ estimateIteratedMeanT <- function(wideDataList, t, whichJ, allJ, t0, adjustVars,
   if(t != 1) {
     for(j in allJ) {
       # exclude previously failed subjects
-      include[wideDataList[[1]][[paste0("N",j,".",t)]]==1] <- FALSE
+      include[wideDataList[[1]][[paste0("N",j,".",t-1)]]==1] <- FALSE
     }
     # exclude previously censored subjects
     include[wideDataList[[1]][[paste0("C.",t)]]==1] <- FALSE
