@@ -202,19 +202,19 @@ makeWideDataListT <- function(dat,
 
               }else{
               #### if the time if not in trtofTime
-                #prev_time_of_trt <- max(trtofTime[trtofTime < t-1])
+                prev_time_of_trt <- max(trtofTime[trtofTime < t-1])
               ### H for observed treatment
 
                 wdl[[paste0("H", j, ".", p,".",t, ".", s, ".0.obs")]] <-
-                  as.numeric(msmModelMatrix[,p] * mw * as.numeric(wdl[,paste0("C.",t)]==0)*ind.r.t_minus1/ (wdl[[paste0("G_obs_dC_t",t)]])) #* wdl[[paste0("g_",r,"_t",prev_time_of_trt)]]))
+                  as.numeric(msmModelMatrix[,p] * mw * as.numeric(wdl[,paste0("C.",t)]==0)*ind.r.t_minus1/ (wdl[[paste0("G_obs_dC_t",t)]]* wdl[[paste0("g_",r,"_t",prev_time_of_trt)]]))
                 wdl[[paste0("H", j, ".", p,".",t, ".", s, ".0.pred")]] <-
-                  as.numeric(msmModelMatrix[,p] * mw / (wdl[[paste0("G_obs_dC_t",t)]])) #* wdl[[paste0("g_",r,"_t",prev_time_of_trt)]]))
+                  as.numeric(msmModelMatrix[,p] * mw / (wdl[[paste0("G_obs_dC_t",t)]]*wdl[[paste0("g_",r,"_t",prev_time_of_trt)]]))
 
               #### H for each regimen
               wdl[[paste0("H", j, ".", p,".",t, ".", s, ".", r ,".obs")]] <-
-                as.numeric(msmModelMatrix[,p] * mw * as.numeric(wdl[,paste0("C.",t)]==0)*ind.r.t_minus1/ (wdl[[paste0("G_",r,"dC_t",t)]])) #* wdl[[paste0("g_",r,"_t",prev_time_of_trt)]]))
+                as.numeric(msmModelMatrix[,p] * mw * as.numeric(wdl[,paste0("C.",t)]==0)*ind.r.t_minus1/ (wdl[[paste0("G_",r,"dC_t",t)]]* wdl[[paste0("g_",r,"_t",prev_time_of_trt)]]))
               wdl[[paste0("H", j, ".", p,".",t, ".", s, ".", r , ".pred")]] <-
-                as.numeric(msmModelMatrix[,p] * mw / (wdl[[paste0("G_",r,"dC_t",t)]])) #* wdl[[paste0("g_",r,"_t",prev_time_of_trt)]]))
+                as.numeric(msmModelMatrix[,p] * mw / (wdl[[paste0("G_",r,"dC_t",t)]]*wdl[[paste0("g_",r,"_t",prev_time_of_trt)]]))
               }
             }
 

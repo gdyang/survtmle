@@ -249,15 +249,7 @@ fluctuateIteratedMeanT <- function(wideDataList, t, uniqtrt, whichJ, allJ, t0,
            for(j in allJ){
              for(s in s.list){
                for(t in 1:s){
-                 include <- rep(TRUE, n)
-                 if(t != 1) {
-                   for(j.inc  in allJ) {
-                     # exclude previously failed subjects
-                     include[wideDataList[[1]][[paste0("N",j.inc,".",t-1)]] == 1] <- FALSE
-                   }
-                   # exclude previously censored subjects
-                   include[wideDataList[[1]][[paste0("C.",t)]]==1] <- FALSE
-                 }
+
 
                   for  (r in seq_len(ncol(trtOfInterest)-1)) {
 
@@ -272,7 +264,7 @@ fluctuateIteratedMeanT <- function(wideDataList, t, uniqtrt, whichJ, allJ, t0,
 
                     cleverCovariates <- wideDataList[[1]][,paste0("H",j,".", 1:msm.p,".",t, ".", s,".", r,".obs")]
                   tmp <- cbind(outcome_tplus1, outcome_t, cleverCovariates)
-                  tmp[-include, ] <- 0
+                  tmp[apply(tmp, 1, function(x) any(is.na(x))), ] <- 0
                   Dt_z <- apply(tmp, 1, function(x){
                     (x[1] - x[2]) * x[3:(msm.p+2)]
                   })
