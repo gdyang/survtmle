@@ -244,7 +244,7 @@ mean_tmle_T <- function(ftime,
                                  returnModels = returnModels,
                                  gtol = gtol,
                                  trtOfInterest = trtOfInterest)
-    wideDat <- wideDataT(dat = dat, allJ = allJ, t0= max(t0))
+    wideDat <- wideDataT(dat = dat, allJ = allJ, t0= max(t0), bounds = bounds, ntrt = ntrt)
 
 
 
@@ -275,6 +275,7 @@ mean_tmle_T <- function(ftime,
                                   ntrt = ntrt,
                                   uniqtrt = uniqtrt,
                                   t0 = t0,
+                                  trtOfInterest = trtOfInterest,
                                   verbose = verbose,
                                   SL.ctime = SL.ctime,
                                   glm.ctime = glm.ctime,
@@ -293,7 +294,7 @@ mean_tmle_T <- function(ftime,
                                       trt = trtData,
                                       wideData = wideDat,
                                       adjustVars = varData, t0 = t0,
-                                      allJ = allJ, ntrt = trtOfInterest, uniqtrt = uniqtrt,
+                                      allJ = allJ, trtOfInterest = trtOfInterest, uniqtrt = uniqtrt,
                                       trtofTime = trtofTime,
                                       msm.formula = msm.formula,
                                       msmWeightList = msmWeightList)
@@ -365,6 +366,7 @@ mean_tmle_T <- function(ftime,
                                         glm.ftime = glm.ftime,
                                         #trtOfInterest = trtOfInterest,
                                         #trtofTime =trtofTime,
+                                        trtOfInterest =  trtOfInterest,
                                         returnModels = returnModels,
                                         bounds = bounds,
                                         Gcomp = Gcomp,
@@ -581,8 +583,8 @@ mean_tmle_T <- function(ftime,
           #   })
           #   return(Dt_z)
           # }, SIMPLIFY = FALSE))
-          tmp <- cbind(outcome_tplus1, outcome_t, cleverCovariates)
-          temp[is.na(temp)] <- 0
+            tmp <- cbind(outcome_tplus1, outcome_t, cleverCovariates)
+            tmp[apply(tmp, 1, function(x) any(is.na(x))), ] <- 0
           Dt_z <- apply(tmp, 1, function(x){
             (x[1] - x[2]) * x[3:(msm.p+2)]
           })

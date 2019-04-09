@@ -1,7 +1,7 @@
 
 estimateTreatmentT <- function(dat, adjustVars,trt, glm.trt = NULL, SL.trt = NULL,
                               returnModels = FALSE, verbose = FALSE,
-                              gtol = 1e-3, trtofTime = NULL, ...) {
+                              gtol = 1e-3, trtofTime = NULL, trtOfInterest = NULL, ...) {
 n <- length(dat[,1])
 
 
@@ -36,7 +36,7 @@ for (t.ind in trtofTime){
 
     var_include <- NULL
     for (var.ind in trtofTime[trtofTime <= t.ind]){
-      var_include <- c(var_include,colnames(varData)[grepl(paste0("t",var.ind), colnames(varData))])
+      var_include <- c(var_include, colnames(adjustVars)[grepl(paste0("t",var.ind), colnames(adjustVars))])
     }
 
     var_past <- adjustVars[id_include,c("id", var_include)]

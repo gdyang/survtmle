@@ -1,6 +1,14 @@
-estimateCensoringT <- function(dat, adjustVars, glm.trt = NULL,trt, SL.trt = NULL,
-                               returnModels = FALSE, verbose = FALSE,
-                               gtol = 1e-3, trtofTime = NULL, ...) {
+estimateCensoringT <- function(dat, adjustVars,
+                               glm.trt = NULL,
+                               trt, t0,
+                               SL.trt = NULL,
+                               SL.ctime = NULL,
+                               returnModels = FALSE,
+                               verbose = FALSE, glm.family,
+                               gtol = 1e-3,
+                               trtofTime = NULL,
+                               glm.ctime = NULL,
+                               trtOfInterest = NULL, ...) {
 
   ##### Time varing confounding censoring
 
@@ -28,7 +36,7 @@ estimateCensoringT <- function(dat, adjustVars, glm.trt = NULL,trt, SL.trt = NUL
 
         var_include <- NULL
         for (var.ind in trtofTime[trtofTime < t.ind]){
-          var_include <- c(var_include,colnames(varData)[grepl(paste0("t",var.ind), colnames(varData))])
+          var_include <- c(var_include,colnames(adjustVars)[grepl(paste0("t",var.ind), colnames(adjustVars))])
         }
 
         var_past <- adjustVars[id_include,c("id", var_include)]

@@ -69,8 +69,8 @@
 estimateIteratedMeanT <- function(wideDataList, t, whichJ, allJ, t0, adjustVars, trt,
                                  SL.ftime = NULL, glm.ftime = NULL, verbose,
                                  returnModels = FALSE, bounds = NULL,
-                                 trtofTime=NULL #### new
-                                 , ...){
+                                 trtofTime=NULL, #### new
+                                 trtOfInterest, ...){
   ## determine who to include in estimation
   include <- rep(TRUE, nrow(wideDataList[[1]]))
   n_regimen <-ncol(trtOfInterest)-1
@@ -116,7 +116,7 @@ estimateIteratedMeanT <- function(wideDataList, t, whichJ, allJ, t0, adjustVars,
 
   var_include <- NULL
   for (var.ind in trtofTime[trtofTime < t]){
-    var_include <- c(var_include,colnames(varData)[grepl(paste0("t",var.ind), colnames(varData))])
+    var_include <- c(var_include,colnames(adjustVars)[grepl(paste0("t",var.ind), colnames(adjustVars))])
   }
 
   var_past <- adjustVars[ , c("id", var_include)]

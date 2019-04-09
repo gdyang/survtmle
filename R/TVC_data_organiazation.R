@@ -49,7 +49,7 @@ VarDataframe <-  function(id = id, adjustVars = adjustVars, trtofTime = trtofTim
 
 
 
-wideDataT <- function(dat = dat, allJ = allJ, t0, ...){
+wideDataT <- function(dat = dat, allJ = allJ, t0, bounds = NULL, ntrt = ntrt, ...){
 
 J <- allJ
 

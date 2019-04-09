@@ -62,6 +62,7 @@
 
 fluctuateIteratedMeanT <- function(wideDataList, t, uniqtrt, whichJ, allJ, t0,
                                   Gcomp = FALSE, bounds = NULL, msm.formula = NULL,
+                                  trtOfInterest,
                                   msm.family = NULL, ...) {
 
   if(length(t0) == 1) {
@@ -276,7 +277,7 @@ fluctuateIteratedMeanT <- function(wideDataList, t, uniqtrt, whichJ, allJ, t0,
           #
           D_ind <- max(abs(apply(D_allt, 1, mean)))
           print(D_ind)
-          if(loop.ind >= 10){D_ind <- 0}
+          if(loop.ind >= 30){D_ind <- 0}
         }
       }
     }else {
