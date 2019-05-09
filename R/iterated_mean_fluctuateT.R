@@ -361,5 +361,5 @@ fluctuateIteratedMeanT <- function(wideDataList, t, uniqtrt, whichJ, allJ, t0,
       }, t = t)
     }
   }
-  wideDataList
+  return(list(wideDataList = wideDataList, D_allt = D_allt))
 }

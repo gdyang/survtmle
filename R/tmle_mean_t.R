@@ -355,7 +355,7 @@ mean_tmle_T <- function(ftime,
   }
 
 ###change the convergence check
-  wideDataList <- fluctuateIteratedMeanT(wideDataList = wideDataList,
+  fimean <- fluctuateIteratedMeanT(wideDataList = wideDataList,
                                         t = max(t0),
                                         whichJ = ofInterestJ[[1]],
                                         ntrt = ntrt, uniqtrt = uniqtrt,
@@ -372,7 +372,7 @@ mean_tmle_T <- function(ftime,
                                         Gcomp = Gcomp,
                                         msm.formula = msm.formula)
 
-
+  wideDataList <- fimean$wideDataList
   # get point estimate
   if(is.null(msm.formula)){
     # need to figure out the estimates withouht MSM
@@ -548,51 +548,51 @@ mean_tmle_T <- function(ftime,
     # sanity check: rowMeans of D1 should be small
     # other pieces of EIF
 
-    D_allt <- matrix(0, nrow = msm.p, ncol = n)
+    D_allt <- fimean$D_allt
 
     # probably need loop over all J here...
-
-    for(j in ofInterestJ){
-      for(s in s.list){
-        for(t in 1:s){
-          for  (r in seq_len(ncol(trtOfInterest))-1) {
-          # TO DO: this could be done more efficiently
-            if(t == s){
-              ### no missing value in N*
-              outcome_tplus1 <- wideDataList[[1]][,paste0("N",j,".",t)]
-            }else{
-              ### missing value in Qbar
-              outcome_tplus1 <- wideDataList[[1]][,paste0("Q",j,".",t+1, ".", s, ".", r)]}
-
-          # outcomeList_tplus1 <- lapply(wideDataList[2:length(wideDataList)], function(x){
-          #   as.numeric(x[,paste0("Q",j,"star.",t+1)])
-          # })
-          # outcomeList_t <- lapply(wideDataList[2:length(wideDataList)], function(x){
-          #   as.numeric(x[,paste0("Q",j,"star.",t)])
-          # })
-            outcome_t <- wideDataList[[1]][,paste0("Q",j,".",t, ".", s, ".", r)]
-
-            msm.p <- sum(grepl(paste0("H", j, ".*.",t,".", s, ".",r, ".obs"), colnames(wideDataList[[1]])))
-            cleverCovariates <- wideDataList[[1]][,paste0("H",j,".", 1:msm.p,".",t, ".", s,".", r,".obs")]
-
-          # cleverCovariateList <- lapply(wideDataList[2:length(wideDataList)], "[", i = 1:n, j = paste0("H",1:msm.p,".",t,".obs"))
-          # Dt_allZ <- Reduce("+", mapply(otp1 = outcomeList_tplus1, ot = outcomeList_t, cc = cleverCovariateList, FUN = function(otp1, ot, cc){
-          #   tmp <- cbind(otp1, ot, cc)
-          #   Dt_z <- apply(tmp, 1, function(x){
-          #     (x[1] - x[2]) * x[3:(msm.p+2)]
-          #   })
-          #   return(Dt_z)
-          # }, SIMPLIFY = FALSE))
-            tmp <- cbind(outcome_tplus1, outcome_t, cleverCovariates)
-            tmp[apply(tmp, 1, function(x) any(is.na(x))), ] <- 0
-          Dt_z <- apply(tmp, 1, function(x){
-            (x[1] - x[2]) * x[3:(msm.p+2)]
-          })
-          D_allt <- D_allt + Dt_z
-          }
-        }
-      }
-    }
+#
+#     for(j in ofInterestJ){
+#       for(s in s.list){
+#         for(t in 1:s){
+#           for  (r in seq_len(ncol(trtOfInterest))-1) {
+#           # TO DO: this could be done more efficiently
+#             if(t == s){
+#               ### no missing value in N*
+#               outcome_tplus1 <- wideDataList[[1]][,paste0("N",j,".",t)]
+#             }else{
+#               ### missing value in Qbar
+#               outcome_tplus1 <- wideDataList[[1]][,paste0("Q",j,".",t+1, ".", s, ".", r)]}
+#
+#           # outcomeList_tplus1 <- lapply(wideDataList[2:length(wideDataList)], function(x){
+#           #   as.numeric(x[,paste0("Q",j,"star.",t+1)])
+#           # })
+#           # outcomeList_t <- lapply(wideDataList[2:length(wideDataList)], function(x){
+#           #   as.numeric(x[,paste0("Q",j,"star.",t)])
+#           # })
+#             outcome_t <- wideDataList[[1]][,paste0("Q",j,".",t, ".", s, ".", r)]
+#
+#             msm.p <- sum(grepl(paste0("H", j, ".*.",t,".", s, ".",r, ".obs"), colnames(wideDataList[[1]])))
+#             cleverCovariates <- wideDataList[[1]][,paste0("H",j,".", 1:msm.p,".",t, ".", s,".", r,".obs")]
+#
+#           # cleverCovariateList <- lapply(wideDataList[2:length(wideDataList)], "[", i = 1:n, j = paste0("H",1:msm.p,".",t,".obs"))
+#           # Dt_allZ <- Reduce("+", mapply(otp1 = outcomeList_tplus1, ot = outcomeList_t, cc = cleverCovariateList, FUN = function(otp1, ot, cc){
+#           #   tmp <- cbind(otp1, ot, cc)
+#           #   Dt_z <- apply(tmp, 1, function(x){
+#           #     (x[1] - x[2]) * x[3:(msm.p+2)]
+#           #   })
+#           #   return(Dt_z)
+#           # }, SIMPLIFY = FALSE))
+#             tmp <- cbind(outcome_tplus1, outcome_t, cleverCovariates)
+#             tmp[apply(tmp, 1, function(x) any(is.na(x))), ] <- 0
+#           Dt_z <- apply(tmp, 1, function(x){
+#             (x[1] - x[2]) * x[3:(msm.p+2)]
+#           })
+#           D_allt <- D_allt + Dt_z
+#           }
+#         }
+#       }
+#     }
     # sanity check: rowMeans of D_allZ_allt should be small
 
     D2 <- cQ_inv %*% D_allt

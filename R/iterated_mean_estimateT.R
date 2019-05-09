@@ -127,10 +127,23 @@ estimateIteratedMeanT <- function(wideDataList, t, whichJ, allJ, t0, adjustVars,
   ## GLM code
   if(is.null(SL.ftime)) {
     if(is.null(bounds)) { # with no bounds
+
+
+      if (t == t0) {
+        glmdata <- cbind(wideDataList[[1]][include, outcomeName, drop =F],
+                        trt_var_past[include, ])
+      } else {
+        glmdata <- lapply(wideDataList, function(wdl){
+          wdl.glm <- cbind(wdl[include, outcomeName, drop =F],
+                trt_var_past[include, ])
+         return(wdl.glm)
+        } )
+          glmdata <- do.call(rbind, glmdata)
+      }
+
       suppressWarnings({
         Qmod <- fast_glm(reg_form = stats::as.formula(Qform),
-                         data = cbind(wideDataList[[1]][include, outcomeName, drop =F],
-                                           trt_var_past[include, ]),
+                         data = glmdata,
                          family = stats::binomial())
         if (unique(class(Qmod) %in% c("glm", "lm"))) {
           Qmod <- cleanglm(Qmod)

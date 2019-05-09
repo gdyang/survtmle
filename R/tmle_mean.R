@@ -197,12 +197,8 @@ mean_tmle <- function(ftime,
   # assemble data frame of necessary variables
   n <- length(ftime)
   id <- seq_len(n)
-  if (is.null(trtofTime)){
-    dat <- data.frame(id = id, ftime = ftime, ftype = ftype, trt = trt)
-  } else {
-    dat <- data.frame(id = id, ftime = ftime, ftype = ftype)
-    trtData <- trtDataframe(id = id, trt = trt,trtofTime = trtofTime)
-    }
+  dat <- data.frame(id = id, ftime = ftime, ftype = ftype, trt = trt)
+
 
 
   s.list <- sort(t0)
@@ -218,11 +214,8 @@ mean_tmle <- function(ftime,
 
 
 
-  if (!is.null(adjustVars) & is.null(trtofTime)) {
     dat <- cbind(dat, adjustVars)
-  } else if (!is.null(adjustVars) & !is.null(trtofTime)){
-    varData <- VarDataframe(id = id, adjustVars = adjustVars,trtofTime = trtofTime)
-  }
+
 
   # calculate number of failure types
   nJ <- length(ftypeOfInterest)
@@ -232,17 +225,12 @@ mean_tmle <- function(ftime,
 
   # calculate number of groups
 
-  if(!is.data.frame(trtOfInterest)){
     ntrt <- length(trtOfInterest)
     uniqtrt <- sort(trtOfInterest)
-  }else{
-    # is the trtofinterest is not data.frame
-    ntrt <- length(unique(unlist(trtOfInterest[,-1])))
-    uniqtrt <- unique(unlist(trtOfInterest[,-1]))
-  }
+
 
   # estimate trt probabilities
-  if (is.null(trtofTime)){
+
     trtOut <- estimateTreatment(dat = dat,
                                 ntrt = ntrt,
                                 uniqtrt = uniqtrt,
@@ -253,20 +241,6 @@ mean_tmle <- function(ftime,
                                 returnModels = returnModels,
                                 gtol = gtol,
                                 trtOfInterest = trtOfInterest)
-  } else {
-    trtOut <- estimateTreatmentT(dat = dat,
-                                 ntrt = ntrt,
-                                 uniqtrt = uniqtrt,
-                                 adjustVars = varData,
-                                 trt = trtData,
-                                 SL.trt = SL.trt,
-                                 glm.trt = glm.trt,
-                                 returnModels = returnModels,
-                                 gtol = gtol,
-                                 trtOfInterest = trtOfInterest)
-    wideDat <- wideDataT(dat = dat, allJ = allJ)
-
-  }
 
   dat <- trtOut$dat
   trtMod <- trtOut$trtMod
@@ -288,7 +262,6 @@ mean_tmle <- function(ftime,
   }
 
 
-  if (is.null(trtofTime)){
     dataList <- makeDataList(dat = dat, J = allJ, ntrt = ntrt, uniqtrt = uniqtrt,
                              t0 = max(t0), bounds = bounds)
 
@@ -319,48 +292,11 @@ mean_tmle <- function(ftime,
                                      msm.formula = msm.formula,
                                      msmWeightList = msmWeightList)
 
-  }else {
-
-    censOut <- estimateCensoringT(dat = dat,
-                                  adjustVars = varData,
-                                  trt = trtData,
-                                  ntrt = ntrt,
-                                  uniqtrt = uniqtrt,
-                                  t0 = t0,
-                                  verbose = verbose,
-                                  SL.ctime = SL.ctime,
-                                  glm.ctime = glm.ctime,
-                                  glm.family = glm.family,
-                                  returnModels = returnModels,
-                                  gtol = gtol)
-    dataList <- censOut$dat
-    ctimeMod <- censOut$ctimeMod
-
-
-#### still need to need decide what is the msmWeights
-
-    msmWeightList <- 1
-
-    wideDataList <- makeWideDataListT(dat = dataList,
-                                     trt = trtData,
-                                     wideData = wideDat,
-                                     adjustVars = varData, t0 = max(t0),
-                                     allJ = allJ, ntrt = trtOfInterest, uniqtrt = uniqtrt,
-                                     trtofTime = trtofTime,
-                                     msm.formula = msm.formula,
-                                     msmWeightList = msmWeightList)
-
-
-      }
 
 
 
 
 
-
-
-  # make wide form data with time confoning
-  if (!is.null(trtofTime)){wideDat <- wideDataT(dat = dat, allJ = J)}
 
   # estimate/fluctuate iterated means
     timeAndType <- NULL
@@ -413,7 +349,8 @@ mean_tmle <- function(ftime,
                                             t = max(t0),
                                             whichJ = ofInterestJ[[1]],
                                             ntrt = ntrt, uniqtrt = uniqtrt,
-                                            allJ = ofInterestJ, t0 = t0,
+                                            allJ = allJ, t0 = t0,
+                                            ofInterestJ = ofInterestJ,
                                             SL.ftime = SL.ftime,
                                             glm.ftime = glm.ftime,
                                             returnModels = returnModels,
