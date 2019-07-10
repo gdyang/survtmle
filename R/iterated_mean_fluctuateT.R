@@ -174,7 +174,7 @@ fluctuateIteratedMeanT <- function(wideDataList, t, uniqtrt, whichJ, allJ, t0,
 
 
             ### stack over the observed and treatment regimen of interest
-            data.list.temp <- vector("list", ncol(trtOfInterest))
+            data.list.temp <- vector("list", ncol(trtOfInterest)-1)
             for (r in seq_len(ncol(trtOfInterest)-1)){
               msm.p <- sum(grepl(paste0("H", Jtype,".*",t, ".", t0,".",r ,".obs"), colnames(wideDataList[[1]])))
               msm.p.names <- paste0("H", seq_len(msm.p))
@@ -184,14 +184,14 @@ fluctuateIteratedMeanT <- function(wideDataList, t, uniqtrt, whichJ, allJ, t0,
 
               outcomeName.temp <- ifelse(t == t0, paste0("N", Jtype, ".", t0),
                                          paste0("Q", Jtype, ".", t + 1, ".", t0, ".",r))
-              data.list.temp[[r+1]] <- wideDataList[[1]][include, c(outcomeName.temp, paste0("Q", Jtype,
-                                                                                      ".", t,".", t0, ".",r ),  msm.p.names.temp)]
+              data.list.temp[[r]] <- wideDataList[[1]][include, c(outcomeName.temp,
+                                                                  paste0("Q", Jtype,".", t,".", t0, ".",r ),
+                                                                  msm.p.names.temp)]
 
-              colnames(data.list.temp[[r+1]]) <- c("outcome", "offset", msm.p.names)
+              colnames(data.list.temp[[r]]) <- c("outcome", "offset", msm.p.names)
             }
 
             data.list[[i]] <- Reduce(rbind, data.list.temp)
-
           }
 
 
@@ -229,7 +229,7 @@ fluctuateIteratedMeanT <- function(wideDataList, t, uniqtrt, whichJ, allJ, t0,
             wideDataList <- lapply(wideDataList, function(x, t, include) {
               x[[paste0("NnotJ.",t-1)]] <-
                 rowSums(cbind(rep(0, nrow(x)), x[, paste0('N', allJ[allJ != Jtype], '.', t - 1)]))
-              for (r in seq_len(ncol(trtOfInterest)-1)){
+              for (r in seq_len(ncol(trtOfInterest)-1) ){
                 predCov <- as.matrix(x[,paste0("H", Jtype , ".", 1:msm.p,".",t, ".", t0, ".", r, ".pred")])
                 predOffset <- x[,paste0("Q", Jtype,".", t, ".", t0, ".",r)]
                 suppressWarnings(

@@ -133,11 +133,16 @@ estimateIteratedMeanT <- function(wideDataList, t, whichJ, allJ, t0, adjustVars,
         glmdata <- cbind(wideDataList[[1]][include, outcomeName, drop =F],
                         trt_var_past[include, ])
       } else {
-        glmdata <- lapply(wideDataList, function(wdl){
-          wdl.glm <- cbind(wdl[include, outcomeName, drop =F],
-                trt_var_past[include, ])
-         return(wdl.glm)
-        } )
+        glmdata <- vector("list", ncol(trtOfInterest) - 1)
+        for (r in seq(ncol(trtOfInterest) - 1)){
+          trt_data_temp <- trt_var_past
+         for(regimen_time in 1:length(trtofTime[which(trtofTime < t)])){
+            trt_data_temp[include, paste0("trt_t",trtofTime[regimen_time])] <-
+              regimen[regimen_time,r]
+          }
+          glmdata[[r]] <- cbind(wideDataList[[r+1]][include, outcomeName, drop =F],
+                                      trt_data_temp[include, ])
+                                }
           glmdata <- do.call(rbind, glmdata)
       }
 
@@ -150,22 +155,28 @@ estimateIteratedMeanT <- function(wideDataList, t, whichJ, allJ, t0, adjustVars,
         }
 
         wideDataList <- lapply(wideDataList, function(x, whichJ, t) {
-          suppressWarnings(
+          pred.temp <- suppressWarnings(
           ###### predict Q bar under observed treatment
-            x[[Qj.t]] <- x[[Nj.tm1]] + (1-x[[NnotJ.tm1]]-x[[Nj.tm1]])*
-              predict(Qmod,newdata=trt_var_past,type="response")
+               predict(Qmod,newdata=trt_var_past,type="response")
           )
+          ###### setting all the missing value to 0
+          pred.temp[is.na(pred.temp)] <- 1
+          x[[Qj.t]] <- x[[Nj.tm1]] + (1-x[[NnotJ.tm1]]-x[[Nj.tm1]])*pred.temp
+
           ###### predict Q bar under each treach regrimen
           for(regimen_ind in 1:n_regimen){
             Qj.t.r <- paste0("Q", whichJ, ".", t, ".", t0, ".", regimen_ind)
             trt_data_pred <- trt_var_past
             for(regimen_time in 1:length(trtofTime[which(trtofTime < t)])){
-              trt_data_pred[include, paste0("trt_t",trtofTime[regimen_time])] <- regimen[regimen_time,regimen_ind]
+              trt_data_pred[include, paste0("trt_t",trtofTime[regimen_time])] <-
+                regimen[regimen_time,regimen_ind]
             }
-            suppressWarnings(
-            x[[Qj.t.r]] <- x[[Nj.tm1]] + (1-x[[NnotJ.tm1]]-x[[Nj.tm1]])*
+            pred.temp.r <- suppressWarnings(
               predict(Qmod,newdata=trt_data_pred,type="response")
             )
+            pred.temp.r[is.na(pred.temp.r)] <- 1
+            x[[Qj.t.r]] <- x[[Nj.tm1]] + (1-x[[NnotJ.tm1]]-x[[Nj.tm1]])*pred.temp.r
+
             }
 
           x

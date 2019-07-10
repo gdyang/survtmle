@@ -301,10 +301,6 @@ mean_tmle_T <- function(ftime,
 
 
 
-
-
-
-
   # estimate/fluctuate iterated means
   timeAndType <- NULL
   if(length(s.list) > 1){
@@ -428,10 +424,10 @@ mean_tmle_T <- function(ftime,
     # make a stacked vector of Qj.1.r
     est <- rowNames <- NULL
 
-    cfact <- wideDataList[[2]]
+    cfact <- wideDataList[[1]]
     temp.cfact.fill <- cfact[seq_len(length(ofInterestJ) * length(unique(trt))),]
     temp.cfact.fill$ftype <-  c(ofInterestJ)
-  #  temp.cfact.fill$trt <- c(sort(unique(unlist(trtOfInterest[,-1]))))
+  # temp.cfact.fill$trt <- c(sort(unique(unlist(trtOfInterest[,-1]))))
 
     stackedOutcomeVec <- NULL
     stackedWeightVec <- NULL
@@ -440,20 +436,23 @@ mean_tmle_T <- function(ftime,
     outcomeList <- vector("list", length = nallJ*length(s.list)*ncol(trtOfInterest))
     modelMatrixList <- vector("list", length = nallJ*length(s.list)*ncol(trtOfInterest))
     j.ind <- 0
+    seq_regmen <- seq_len(ncol(trtOfInterest)-1)
     for (s in s.list){
       for(j in  ofInterestJ){
-        for (r in seq_len(ncol(trtOfInterest))-1){
+        for (r in seq_len(ncol(trtOfInterest)-1)){
         j.ind <- j.ind+1
-        outcomeList[[j.ind]] <- lapply(wideDataList[2:length(wideDataList)], "[[", paste0("Q",j,".1", ".", s,".",r))
+        outcomeList[[j.ind]] <- lapply(wideDataList[1], "[[", paste0("Q",j,".1", ".", s,".",r))
 
         ## need to decide the weights
         #msmWeightList.temp[[j.ind]] <- lapply(msmWeightList[2:length(msmWeightList)], function(x){x})
         msmWeightList.temp[[j.ind]] <- 1
 
-        modelMatrixList[[j.ind]] <- lapply(wideDataList[2:length(wideDataList)], function(wdl){
+        modelMatrixList[[j.ind]] <- lapply(wideDataList[1], function(wdl){
           wdl$ftype <- j
           wdl.new <- rbind(temp.cfact.fill, wdl)
           wdl.new$ftime<- s
+          wdl.new[[paste0("regimen", r)]] <- 1
+          wdl.new[[paste0("regimen", seq_regmen[which(seq_regmen != r)])]] <- 0
           model.matrix(as.formula(paste0("N",j,".0 ~", msm.formula)), data = wdl.new)[-seq_len(nrow(temp.cfact.fill)),]
         })
         modelMatrixObs <- model.matrix(as.formula(paste0("N",j,".0 ~", msm.formula)), data = wideDataList[[1]])
@@ -550,50 +549,6 @@ mean_tmle_T <- function(ftime,
 
     D_allt <- fimean$D_allt
 
-    # probably need loop over all J here...
-#
-#     for(j in ofInterestJ){
-#       for(s in s.list){
-#         for(t in 1:s){
-#           for  (r in seq_len(ncol(trtOfInterest))-1) {
-#           # TO DO: this could be done more efficiently
-#             if(t == s){
-#               ### no missing value in N*
-#               outcome_tplus1 <- wideDataList[[1]][,paste0("N",j,".",t)]
-#             }else{
-#               ### missing value in Qbar
-#               outcome_tplus1 <- wideDataList[[1]][,paste0("Q",j,".",t+1, ".", s, ".", r)]}
-#
-#           # outcomeList_tplus1 <- lapply(wideDataList[2:length(wideDataList)], function(x){
-#           #   as.numeric(x[,paste0("Q",j,"star.",t+1)])
-#           # })
-#           # outcomeList_t <- lapply(wideDataList[2:length(wideDataList)], function(x){
-#           #   as.numeric(x[,paste0("Q",j,"star.",t)])
-#           # })
-#             outcome_t <- wideDataList[[1]][,paste0("Q",j,".",t, ".", s, ".", r)]
-#
-#             msm.p <- sum(grepl(paste0("H", j, ".*.",t,".", s, ".",r, ".obs"), colnames(wideDataList[[1]])))
-#             cleverCovariates <- wideDataList[[1]][,paste0("H",j,".", 1:msm.p,".",t, ".", s,".", r,".obs")]
-#
-#           # cleverCovariateList <- lapply(wideDataList[2:length(wideDataList)], "[", i = 1:n, j = paste0("H",1:msm.p,".",t,".obs"))
-#           # Dt_allZ <- Reduce("+", mapply(otp1 = outcomeList_tplus1, ot = outcomeList_t, cc = cleverCovariateList, FUN = function(otp1, ot, cc){
-#           #   tmp <- cbind(otp1, ot, cc)
-#           #   Dt_z <- apply(tmp, 1, function(x){
-#           #     (x[1] - x[2]) * x[3:(msm.p+2)]
-#           #   })
-#           #   return(Dt_z)
-#           # }, SIMPLIFY = FALSE))
-#             tmp <- cbind(outcome_tplus1, outcome_t, cleverCovariates)
-#             tmp[apply(tmp, 1, function(x) any(is.na(x))), ] <- 0
-#           Dt_z <- apply(tmp, 1, function(x){
-#             (x[1] - x[2]) * x[3:(msm.p+2)]
-#           })
-#           D_allt <- D_allt + Dt_z
-#           }
-#         }
-#       }
-#     }
-    # sanity check: rowMeans of D_allZ_allt should be small
 
     D2 <- cQ_inv %*% D_allt
     infCurves <- D1 + D2

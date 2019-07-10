@@ -173,9 +173,6 @@ fluctuateIteratedMean <- function(wideDataList, t, uniqtrt, whichJ, allJ, t0,ofI
             msm.p.names <- paste0("H", seq_len(msm.p))
 
 
-
-
-
             outcomeName.temp <- ifelse(t == t0, paste("N", Jtype, ".", t0, sep = ""),
                                   paste("Q", Jtype, "star.", t + 1, ".", t0, sep = ""))
             msm.p.names.temp <- colnames(wideDataList[[1]])[grepl(paste0("H", Jtype,".*",t,  ".", t0,".obs"),

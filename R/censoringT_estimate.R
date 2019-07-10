@@ -25,7 +25,7 @@ estimateCensoringT <- function(dat, adjustVars,
 
       ## create data to fit the model
       if (t.ind != 0){
-        id_include <- (dat$ftime > t.ind - 1)
+        id_include <- dat$ftime > (t.ind - 1)
         ftype_include <- dat[id_include, "ftype"]
         ftime_include <- dat[id_include, "ftime"]
 
@@ -98,11 +98,13 @@ estimateCensoringT <- function(dat, adjustVars,
 
 
         }
-
+       if(all(class(ctimeMod) %in% "noCens") ){
+         pred <- 0
+       }else{
         suppressWarnings(
           pred <- predict(ctimeMod, newdata = trt_data_in, type = "response")
         )
-
+       }
         dat[id_include, paste0("G_obs_dC_t", t.ind)] <- (1-pred)* dat[id_include, paste0("G_obs_dC_t", t.ind-1)]
 
 
@@ -127,6 +129,8 @@ estimateCensoringT <- function(dat, adjustVars,
           )
 
             dat[id_include, paste0("G_", regimen_ind ,"dC_t", t.ind)] <- (1-pred)* dat[id_include, paste0("G_", regimen_ind ,"dC_t", t.ind-1)]
+          }else {
+            dat[id_include, paste0("G_", regimen_ind ,"dC_t", t.ind)] <-  dat[id_include, paste0("G_", regimen_ind ,"dC_t", t.ind-1)]
           }
         }
 
