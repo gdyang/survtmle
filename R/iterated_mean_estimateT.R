@@ -110,8 +110,8 @@ estimateIteratedMeanT <- function(wideDataList, t, whichJ, allJ, t0, adjustVars,
 
   #### creating matrix for past covariates t-1 and treatment up to t-1
 
-  trt_include <-c("id", paste0("trt_t", trtofTime[trtofTime < t]))
-  trt_past <- trt[ , trt_include]
+  trt_include <-c(paste0("trt_t", trtofTime[trtofTime < t]))
+  trt_past <- trt[ , trt_include, drop = F]
 
 
   var_include <- NULL
@@ -119,9 +119,10 @@ estimateIteratedMeanT <- function(wideDataList, t, whichJ, allJ, t0, adjustVars,
     var_include <- c(var_include,colnames(adjustVars)[grepl(paste0("t",var.ind), colnames(adjustVars))])
   }
 
-  var_past <- adjustVars[ , c("id", var_include)]
+  var_past <- adjustVars[ , c(var_include)]
 
-  trt_var_past <- merge(trt_past, var_past, by = "id")[,-1]
+  trt_var_past <- cbind(trt_past, var_past)
+  ### check if it lines up??
 
 
   ## GLM code
@@ -136,14 +137,18 @@ estimateIteratedMeanT <- function(wideDataList, t, whichJ, allJ, t0, adjustVars,
         glmdata <- vector("list", ncol(trtOfInterest) - 1)
         for (r in seq(ncol(trtOfInterest) - 1)){
           trt_data_temp <- trt_var_past
-         for(regimen_time in 1:length(trtofTime[which(trtofTime < t)])){
-            trt_data_temp[include, paste0("trt_t",trtofTime[regimen_time])] <-
-              regimen[regimen_time,r]
+          for(regimen_time in 1:length(trtofTime[which(trtofTime < t)])){
+              trt_data_temp[include, paste0("trt_t",trtofTime[regimen_time])] <-
+                regimen[regimen_time,r]
           }
-          glmdata[[r]] <- cbind(wideDataList[[r+1]][include, outcomeName, drop =F],
+          ## double check the outcome name is correct
+          outcome_r <- paste0("Q", whichJ, ".", t+1, ".", t0, ".", r)
+          glmdata[[r]] <- cbind(wideDataList[[1]][include, outcome_r, drop =F],
                                       trt_data_temp[include, ])
-                                }
-          glmdata <- do.call(rbind, glmdata)
+          colnames(glmdata[[r]])[which( colnames(glmdata[[r]]) ==  outcome_r)] <- outcomeName
+        }
+
+        glmdata <- do.call(rbind, glmdata)
       }
 
       suppressWarnings({
