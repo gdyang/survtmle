@@ -207,7 +207,6 @@ fluctuateIteratedMeanT <- function(wideDataList, t, uniqtrt, whichJ, allJ, t0,
                                   start = rep(0, ncol(stack.glm.data)-2))
           )
           epsilon <- matrix(flucMod$coefficients)
-          print(epsilon)
           # get predictions back
           for (i in seq_len(nrow(timeAndType))){
 
@@ -276,7 +275,6 @@ fluctuateIteratedMeanT <- function(wideDataList, t, uniqtrt, whichJ, allJ, t0,
             }
           #
           D_ind <- max(abs(apply(D_allt, 1, mean)))
-          print(D_ind)
           if(loop.ind >= 30){D_ind <- 0}
         }
       }
