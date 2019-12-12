@@ -320,6 +320,7 @@ mean_tmle_T <- function(ftime,
   }
 
 
+
   for(row.ind in seq_len(nrow(timeAndType))){
     s <- timeAndType[row.ind,3]
     i <- timeAndType[row.ind,1]

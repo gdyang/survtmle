@@ -81,9 +81,10 @@ estimateIteratedMeanT <- function(wideDataList, t, whichJ, allJ, t0, adjustVars,
       # exclude previously failed subjects
       include[wideDataList[[1]][[paste0("N",j,".",t-1)]]==1] <- FALSE
     }
-    # exclude previously censored subjects
-    include[wideDataList[[1]][[paste0("C.",t)]]==1] <- FALSE
   }
+  # exclude previously censored subjects
+  include[wideDataList[[1]][[paste0("C.",t)]]==1] <- FALSE
+
 
   ## determine the outcome for the regression
   outcomeName <- ifelse(t == t0, paste0("N", whichJ, ".", t0),
@@ -106,7 +107,16 @@ estimateIteratedMeanT <- function(wideDataList, t, whichJ, allJ, t0, adjustVars,
   Nj.tm1 <- paste0("N", whichJ, ".", t - 1)
   Qj.t <- paste0("Q", whichJ, ".", t, ".", t0, ".0")
   NnotJ.tm1 <- paste0("NnotJ.", t - 1)
-  Qform <- paste(outcomeName, "~", glm.ftime, sep = " ")
+  if (is.list(glm.ftime)){
+    if ( length(glm.ftime)  >= max(t0)){
+      Qform <- paste(outcomeName, "~", glm.ftime[[paste0("t", t)]], sep = " ")
+    } else{
+        stop("need to specified regression form for censoring at all the time points")
+    }
+  } else {
+      Qform <- paste(outcomeName, "~", glm.ftime, sep = " ")
+  }
+
 
   #### creating matrix for past covariates t-1 and treatment up to t-1
 
@@ -116,7 +126,8 @@ estimateIteratedMeanT <- function(wideDataList, t, whichJ, allJ, t0, adjustVars,
 
   var_include <- NULL
   for (var.ind in trtofTime[trtofTime < t]){
-    var_include <- c(var_include,colnames(adjustVars)[grepl(paste0("t",var.ind), colnames(adjustVars))])
+    var_include <- c(var_include,colnames(adjustVars)[grepl(paste0("t",var.ind),
+                                                            colnames(adjustVars))])
   }
 
   var_past <- adjustVars[ , c(var_include)]
@@ -132,23 +143,33 @@ estimateIteratedMeanT <- function(wideDataList, t, whichJ, allJ, t0, adjustVars,
 
       if (t == t0) {
         glmdata <- cbind(wideDataList[[1]][include, outcomeName, drop =F],
-                        trt_var_past[include, ])
+                         trt_var_past[include, ])
+
       } else {
         glmdata <- vector("list", ncol(trtOfInterest) - 1)
         for (r in seq(ncol(trtOfInterest) - 1)){
           trt_data_temp <- trt_var_past
-          for(regimen_time in 1:length(trtofTime[which(trtofTime < t)])){
-              trt_data_temp[include, paste0("trt_t",trtofTime[regimen_time])] <-
-                regimen[regimen_time,r]
-          }
+          #if (t -1 %in% trtofTime){
+          #    trt_data_temp[, paste0("trt_t",trtofTime[t -1])] <-
+          #      regimen[t -1,r]
+          #}
           ## double check the outcome name is correct
+
           outcome_r <- paste0("Q", whichJ, ".", t+1, ".", t0, ".", r)
           glmdata[[r]] <- cbind(wideDataList[[1]][include, outcome_r, drop =F],
-                                      trt_data_temp[include, ])
+                                trt_data_temp[include, ])
+          #print(paste0("t: ", t,"t0: ", t0,"J: ", whichJ, "r: ", r))
+          #print(mean(wideDataList[[1]][include, outcome_r]))
+          if (t <= max(trtofTime)){
+            glmdata[[r]][["r.ind"]] = r
+          }
           colnames(glmdata[[r]])[which( colnames(glmdata[[r]]) ==  outcome_r)] <- outcomeName
         }
 
         glmdata <- do.call(rbind, glmdata)
+        if (t <= max(trtofTime)){
+          glmdata$r.ind = factor(glmdata$r.ind)
+        }
       }
 
       suppressWarnings({
@@ -159,33 +180,44 @@ estimateIteratedMeanT <- function(wideDataList, t, whichJ, allJ, t0, adjustVars,
           Qmod <- cleanglm(Qmod)
         }
 
-        wideDataList <- lapply(wideDataList, function(x, whichJ, t) {
-          pred.temp <- suppressWarnings(
+        wideDataList <- lapply(wideDataList, function(x, whichJ, t, Qj.t, Nj.tm1, NnotJ.tm1) {
+          #pred.temp <- suppressWarnings(
           ###### predict Q bar under observed treatment
-               predict(Qmod,newdata=trt_var_past,type="response")
-          )
-          ###### setting all the missing value to 0
-          pred.temp[is.na(pred.temp)] <- 1
-          x[[Qj.t]] <- x[[Nj.tm1]] + (1-x[[NnotJ.tm1]]-x[[Nj.tm1]])*pred.temp
+          #     predict(Qmod,newdata=trt_var_past,type="response")
+          #)
+          ###### setting all the missing value to 1
+          #pred.temp[is.na(pred.temp)] <- 1
+          #x[[Qj.t]] <- x[[Nj.tm1]] + (1-x[[NnotJ.tm1]]-x[[Nj.tm1]])*pred.temp
 
           ###### predict Q bar under each treach regrimen
           for(regimen_ind in 1:n_regimen){
             Qj.t.r <- paste0("Q", whichJ, ".", t, ".", t0, ".", regimen_ind)
             trt_data_pred <- trt_var_past
-            for(regimen_time in 1:length(trtofTime[which(trtofTime < t)])){
-              trt_data_pred[include, paste0("trt_t",trtofTime[regimen_time])] <-
-                regimen[regimen_time,regimen_ind]
+            if ((t -1) %in% trtofTime){
+              trt_data_pred[, paste0("trt_t",t -1)] <-
+                regimen[which(trtofTime == t -1),regimen_ind]
             }
+            if (t <= max(trtofTime)){
+              trt_data_pred[["r.ind"]] = factor(regimen_ind, levels = seq_len(n_regimen))
+            }
+
             pred.temp.r <- suppressWarnings(
               predict(Qmod,newdata=trt_data_pred,type="response")
             )
-            pred.temp.r[is.na(pred.temp.r)] <- 1
-            x[[Qj.t.r]] <- x[[Nj.tm1]] + (1-x[[NnotJ.tm1]]-x[[Nj.tm1]])*pred.temp.r
+            # Maybe an issue which is the same as the :pred.temp.r[is.na(pred.temp.r)] <- 1
+            pred.temp.r[x[[Nj.tm1]] == 1] <- 1
+            pred.temp.r[x[[NnotJ.tm1]] == 1] <- 1
+            #pred.temp.r[is.na(pred.temp.r)] <- 1
 
-            }
+          #  past_t <- trtofTime[trtofTime < t]
+          #  ind.r.t_minus1 <-  apply(x[,paste0("trt_t", past_t), drop = FALSE], 1, function(x){
+          #    as.numeric(all(x == trtOfInterest[(trtofTime < t), paste0("regimen", regimen_ind)]))  } )
+          #  ind.r.t_minus1[is.na(ind.r.t_minus1)] <- 1
+              x[[Qj.t.r]] <- x[[Nj.tm1]] + (1-x[[NnotJ.tm1]]-x[[Nj.tm1]])*pred.temp.r
+          }
 
           x
-        }, t = t, whichJ = whichJ)
+        }, t = t, whichJ = whichJ, Qj.t =  Qj.t, Nj.tm1 = Nj.tm1, NnotJ.tm1 =  NnotJ.tm1)
       })
     } else { # with bounds
       X <- stats::model.matrix(stats::as.formula(Qform),
@@ -226,7 +258,7 @@ estimateIteratedMeanT <- function(wideDataList, t, whichJ, allJ, t0, adjustVars,
                              data = cbind(wideDataList[[1]][include, outcomeName, drop =F],
                                           trt_var_past[include, ]),
                              family = stats::gaussian())
-            wideDataList <- lapply(wideDataList, function(x, whichJ, t) {
+            wideDataList <- lapply(wideDataList, function(x, whichJ, t, Qj.t, Nj.tm1, NnotJ.tm1) {
               suppressWarnings(
                 x[[Qj.t]] <- x[[Nj.tm1]] + (1-x[[NnotJ.tm1]]- x[[Nj.tm1]]) *
                   predict(Qmod,newdata=trt_var_past)
@@ -240,6 +272,12 @@ estimateIteratedMeanT <- function(wideDataList, t, whichJ, allJ, t0, adjustVars,
                 for(regimen_time in 1:length(trtofTime[which(trtofTime < t)])){
                   trt_data_pred[,paste0("trt_t",trtofTime[regime_time])] <- regimen[regimen_time,regimen_ind]
                 }
+
+                # past_t <- trtofTime[trtofTime < t]
+                # ind.r.t_minus1 <-  apply(x[,paste0("trt_t", past_t), drop = FALSE], 1, function(x){
+                #   as.numeric(all(x == trtOfInterest[(trtofTime < t), paste0("regimen", regimen_ind)]))  } )
+                # ind.r.t_minus1[is.na(ind.r.t_minus1)] <- 1
+
                 suppressWarnings(
                   x[[Qj.t.r]] <- x[[Nj.tm1]] + (1-x[[NnotJ.tm1]]-x[[Nj.tm1]])*
                     predict(Qmod,newdata=trt_data_pred,type="response")
@@ -260,11 +298,11 @@ estimateIteratedMeanT <- function(wideDataList, t, whichJ, allJ, t0, adjustVars,
                                                family = "binomial",
                                                verbose = verbose)
           )
-          wideDataList <- lapply(wideDataList, function(x, whichJ, t) {
+          wideDataList <- lapply(wideDataList, function(x, whichJ, t,  Qj.t, Nj.tm1, NnotJ.tm1) {
             x[[Qj.t]] <- x[[Nj.tm1]] + (1-x[[NnotJ.tm1]]-x[[Nj.tm1]])*
               predict(Qmod, newdata = trt_var_past, onlySL = TRUE)$pred
             x
-          }, t = t, whichJ = whichJ)
+          }, t = t, whichJ = whichJ, Qj.t =  Qj.t, Nj.tm1 = Nj.tm1, NnotJ.tm1 =  NnotJ.tm1)
           }
       } else {
         suppressWarnings(
@@ -275,7 +313,7 @@ estimateIteratedMeanT <- function(wideDataList, t, whichJ, allJ, t0, adjustVars,
                                              family = "binomial",
                                              verbose = verbose)
         )
-        wideDataList <- lapply(wideDataList, function(x, whichJ, t) {
+        wideDataList <- lapply(wideDataList, function(x, whichJ, t, Qj.t, Nj.tm1, NnotJ.tm1) {
           suppressWarnings(
             x[[Qj.t]] <- x[[Nj.tm1]] + (1 - x[[Nj.tm1]] - x[[NnotJ.tm1]]) *
               predict(Qmod, newdata = trt_var_past, onlySL = TRUE)$pred
@@ -296,7 +334,7 @@ estimateIteratedMeanT <- function(wideDataList, t, whichJ, allJ, t0, adjustVars,
 
 
           x
-        }, t = t, whichJ = whichJ)
+        }, t = t, whichJ = whichJ, Qj.t =  Qj.t, Nj.tm1 = Nj.tm1, NnotJ.tm1 =  NnotJ.tm1)
         }
     } else {
       stop("Super Learner code with bounds not written yet")

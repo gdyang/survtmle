@@ -25,7 +25,7 @@ estimateCensoringT <- function(dat, adjustVars,
 
       ## create data to fit the model
       if (t.ind != 0){
-        id_include <- dat$ftime > (t.ind - 1)
+        id_include <- (dat$ftime >= t.ind)
         ftype_include <- dat[id_include, "ftype"]
         ftime_include <- dat[id_include, "ftime"]
 
@@ -79,7 +79,15 @@ estimateCensoringT <- function(dat, adjustVars,
           if(!("glm" %in% class(glm.ctime)) & !("speedglm" %in% class(glm.ctime))) {
             # fit the treatment model
             if(!all(thisY == 0)) {
-              ctimeForm <- stats::as.formula(sprintf("%s ~ %s", "thisY", glm.ctime))
+              if (is.list(glm.ctime)){
+                if ( length(glm.ctime)  == max(t0)){
+                ctimeForm <- stats::as.formula(sprintf("%s ~ %s", "thisY", glm.ctime[[paste0("t", t.ind)]]))
+                } else{
+                 stop("need to specified regression form for censoring at all the time points")
+                }
+              } else {
+                ctimeForm <- stats::as.formula(sprintf("%s ~ %s", "thisY", glm.ctime))
+              }
               ctimeMod <- fast_glm(reg_form = ctimeForm,
                                    data =  trt_data_in,
                                    family = eval(glm_family))
@@ -109,9 +117,6 @@ estimateCensoringT <- function(dat, adjustVars,
 
 
 
-
-
-
         for (regimen_ind in 1:n_regimen){
           if(all(class(ctimeMod) != "noCens")) {
             dat[id_include, paste0("G_", regimen_ind ,"dC_t", t.ind)] <- 1
@@ -121,7 +126,6 @@ estimateCensoringT <- function(dat, adjustVars,
             t <- trtofTime[regimen_time ]
             trt_data_pred[,paste0("trt_t",t)] <- regimen[regimen_time ,regimen_ind]
             }
-
 
 
           suppressWarnings(

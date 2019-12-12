@@ -81,17 +81,16 @@ fluctuateIteratedMeanT <- function(wideDataList, t, uniqtrt, whichJ, allJ, t0,
       # exclude previously failed subjects
       include[wideDataList[[1]][[paste0("N",j,".",t-1)]] == 1] <- FALSE
     }
-    # exclude previously censored subjects
-    include[wideDataList[[1]][[paste0("C.",t)]]==1] <- FALSE
   }
-
+  # exclude previously censored subjects
+  include[wideDataList[[1]][[paste0("C.",t)]]==1] <- FALSE
   if(is.null(bounds)) {
     wideDataList <- lapply(wideDataList, function(x) {
 
       for(s in s.list){
         for(t in rev(seq_len(s))){
           for(j in allJ){
-            for (r in seq_len(ncol(trtOfInterest))-1){
+            for (r in seq_len(ncol(trtOfInterest)-1)){
 
             # check for 0's and 1's
             x[[paste0("Q", j, ".", t, ".", s, ".", r)]][x[[paste0("Q", j, ".", t, ".", s, ".", r)]] <
@@ -168,12 +167,12 @@ fluctuateIteratedMeanT <- function(wideDataList, t, uniqtrt, whichJ, allJ, t0,
                 # exclude previously failed subjects
                 include[wideDataList[[1]][[paste0("N",j,".",t-1)]] == 1] <- FALSE
               }
-              # exclude previously censored subjects
-              include[wideDataList[[1]][[paste0("C.",t)]] == 1] <- FALSE
             }
+            # exclude previously censored subjects
+            include[wideDataList[[1]][[paste0("C.",t)]] == 1] <- FALSE
 
 
-            ### stack over the observed and treatment regimen of interest
+            ### stack over the observed treatment regimen of interest
             data.list.temp <- vector("list", ncol(trtOfInterest)-1)
             for (r in seq_len(ncol(trtOfInterest)-1)){
               msm.p <- sum(grepl(paste0("H", Jtype,".*",t, ".", t0,".",r ,".obs"), colnames(wideDataList[[1]])))
@@ -220,10 +219,9 @@ fluctuateIteratedMeanT <- function(wideDataList, t, uniqtrt, whichJ, allJ, t0,
                 # exclude previously failed subjects
                 include[wideDataList[[1]][[paste0("N",j,".",t-1)]] == 1] <- FALSE
               }
-              # exclude previously censored subjects
-              include[wideDataList[[1]][[paste0("C.",t)]] == 1] <- FALSE
             }
-
+            # exclude previously censored subjects
+            include[wideDataList[[1]][[paste0("C.",t)]] == 1] <- FALSE
 
             wideDataList <- lapply(wideDataList, function(x, t, include) {
               x[[paste0("NnotJ.",t-1)]] <-
@@ -236,6 +234,12 @@ fluctuateIteratedMeanT <- function(wideDataList, t, uniqtrt, whichJ, allJ, t0,
                     x[[paste0("N",Jtype,".",t-1)]][include] + (1-x[[paste0("NnotJ.",t-1)]]-x[[paste0("N",Jtype,".",t-1)]])[include]*
                     plogis(qlogis(predOffset[include]) + predCov[include,] %*% epsilon)
                 )
+                # check for 0's and 1's
+                x[[paste0("Q", Jtype, ".", t, ".", t0, ".", r)]][x[[paste0("Q", Jtype, ".", t, ".", t0, ".", r)]] <
+                                                              .Machine$double.neg.eps] <- .Machine$double.neg.eps
+                x[[paste0("Q", Jtype, ".", t, ".", t0, ".", r)]][x[[paste0("Q", Jtype, ".", t, ".", t0, ".", r)]] >
+                                                              1 - .Machine$double.neg.eps] <- 1 - .Machine$double.neg.eps
+
               }
               x
             }, t = t, include = include)

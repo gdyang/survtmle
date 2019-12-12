@@ -184,6 +184,7 @@ makeWideDataListT <- function(dat,
           for(t in 1:s){
 
 ##### create indicator for following the treatment regimen till t-1
+            ## check !
            past_t <- trtofTime[trtofTime <= t-1]
            ind.r.t_minus1 <-  apply(wdl[,paste0("trt_t", past_t), drop = FALSE], 1, function(x){
               as.numeric(sum((x == trtOfInterest[(trtofTime <= t-1), paste0("regimen", r)] ) ) == length(past_t)) } )
@@ -191,13 +192,11 @@ makeWideDataListT <- function(dat,
            ind.r.t_minus1[is.na(ind.r.t_minus1)] <- 0
 
             for(p in 1:msm.p){
-            if ( (t-1) %in% trtofTime){
-
-
+              if ( (t-1) %in% trtofTime){
                 ##### j: failure type, p: number of covariates, t: time, s: t0, r: treatment regime
-                ##### need to fix this add indicator for whether follow till time t
-                wdl[[paste0("H", j, ".", p,".",t, ".", s, ".", r ,".obs")]] <-
-                  as.numeric(msmModelMatrix[,p] * mw * as.numeric(wdl[,paste0("C.",t)]==0)* ind.r.t_minus1/ (wdl[[paste0("G_",r,"dC_t",t)]] * wdl[[paste0("g_",r,"_t",t-1)]]))
+                  wdl[[paste0("H", j, ".", p,".",t, ".", s, ".", r ,".obs")]] <-
+                  as.numeric(msmModelMatrix[,p] * mw * as.numeric(wdl[,paste0("C.",t)]==0)* ind.r.t_minus1/
+                               (wdl[[paste0("G_",r,"dC_t",t)]] * wdl[[paste0("g_",r,"_t",t-1)]]))
              #     as.numeric(msmModelMatrix[,p] * mw * ind.r.t_minus1/ (wdl[[paste0("G_",r,"dC_t",t)]] * wdl[[paste0("g_",r,"_t",t-1)]]))
                   wdl[[paste0("H", j, ".", p,".",t, ".", s, ".", r , ".pred")]] <-
                   as.numeric(msmModelMatrix[,p] * mw / (wdl[[paste0("G_",r,"dC_t",t)]] * wdl[[paste0("g_",r,"_t",t-1)]]))
@@ -208,17 +207,13 @@ makeWideDataListT <- function(dat,
 
               #### H for each regimen
               wdl[[paste0("H", j, ".", p,".",t, ".", s, ".", r ,".obs")]] <-
-                as.numeric(msmModelMatrix[,p] * mw * as.numeric(wdl[,paste0("C.",t)]==0)*ind.r.t_minus1/ (wdl[[paste0("G_",r,"dC_t",t)]]* wdl[[paste0("g_",r,"_t",prev_time_of_trt)]]))
+                as.numeric(msmModelMatrix[,p] * mw * as.numeric(wdl[,paste0("C.",t)]==0)*ind.r.t_minus1/
+                             (wdl[[paste0("G_",r,"dC_t",t)]]* wdl[[paste0("g_",r,"_t",prev_time_of_trt)]]))
               wdl[[paste0("H", j, ".", p,".",t, ".", s, ".", r , ".pred")]] <-
                 as.numeric(msmModelMatrix[,p] * mw / (wdl[[paste0("G_",r,"dC_t",t)]]*wdl[[paste0("g_",r,"_t",prev_time_of_trt)]]))
               }
             }
 
-          }
-          for(p in 1:msm.p){
-            j <- (wdl$ftype)[1]
-            wdl[[paste0("H", j, ".", p,".",0, ".", s, ".", r , ".obs")]] <- as.numeric(msmModelMatrix[,p] * mw *ind.r.t_minus1 / wdl$g_obsz_t0)
-            wdl[[paste0("H", j, ".", p,".",0, ".", s, ".", r , ".pred")]] <- as.numeric(msmModelMatrix[,p] * mw / wdl$g_obsz_t0)
           }
 
         } # end of t0 loop

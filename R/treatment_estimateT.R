@@ -61,11 +61,25 @@ for (t.ind in trtofTime){
     } else if(!is.null(glm.trt) & is.null(SL.trt)) {
       # set up model formula and data for the treatment regression
       #trt_form <- paste("thisY", "~", glm.trt, sep = " ")
-      trt_form <- paste("thisY", "~", glm.trt, sep = " ")
-      trt_data_in <- as.data.frame(cbind(trt_var_past, thisY))
+
       # fit GLM if Super Learner not requested
       if(!("glm" %in% class(glm.trt)) & !("speedglm" %in% class(glm.trt))) {
         # fit the treatment model
+
+        if (is.list(glm.trt)){
+          if ( length(glm.trt)  ==  length(trtofTime) ){
+            trt_form <- paste("thisY", "~", glm.trt[[paste0("t", t.ind)]], sep = " ")
+          } else{
+            stop("need to specified regression form for treatment
+                 at all the time points of assigning treatment")
+          }
+        } else {
+          trt_form <- paste("thisY", "~", glm.trt, sep = " ")
+        }
+
+        #trt_form <- paste("thisY", "~", glm.trt, sep = " ")
+        trt_data_in <- as.data.frame(cbind(trt_var_past, thisY))
+
         trtMod <- fast_glm(reg_form = stats::as.formula(trt_form),
                            data = trt_data_in,
                            family = stats::binomial())
@@ -92,16 +106,17 @@ for (t.ind in trtofTime){
         prev_g <- 1
       }else{
         prev_t <- max(trtofTime[trtofTime < t.ind ])
-        prev_g <- dat[id_include, paste0("g_", regime_ind, "_t", prev_t)]}
+        prev_g <- dat[id_include, paste0("g_", regime_ind, "_t", prev_t)]
+      }
 
 
       if(regime[which(trtofTime == t.ind ),regime_ind] == 1){
         dat[id_include, paste0("g_", regime_ind, "_t", t.ind)] <-
-          pred* prev_g
+          pred*prev_g
       }else{
         dat[id_include, paste0("g_", regime_ind, "_t", t.ind)] <-
           (1-pred)*prev_g
-    }
+      }
 
 
   } ##### need to add the case when trt is not binary
@@ -111,7 +126,6 @@ for (t.ind in trtofTime){
   for(a in 1:n_regime){
     eval(parse(text = paste0("dat$g_", a, "_t",t.ind, "[dat$g_", a, "_t", t.ind,
                              "< gtol]<- gtol")))
-
   }
 
   suppressWarnings(

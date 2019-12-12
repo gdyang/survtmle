@@ -166,9 +166,10 @@ fluctuateIteratedMean <- function(wideDataList, t, uniqtrt, whichJ, allJ, t0,ofI
               # exclude previously failed subjects
                 include[wideDataList[[1]][[paste0("N",j,".",t-1)]] == 1] <- FALSE
               }
-              # exclude previously censored subjects
-              include[wideDataList[[1]][[paste0("C.",t-1)]]==1] <- FALSE
             }
+            # exclude previously censored subjects
+            include[wideDataList[[1]][[paste0("C.",t-1)]]==1] <- FALSE
+
             msm.p <- sum(grepl(paste0("H", Jtype,".*",t, ".", t0,".obs"), colnames(wideDataList[[1]])))
             msm.p.names <- paste0("H", seq_len(msm.p))
 
