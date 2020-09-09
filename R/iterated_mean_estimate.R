@@ -106,7 +106,7 @@ estimateIteratedMean <- function(wideDataList, t, whichJ, allJ, t0, adjustVars,
     if(is.null(bounds)) { # with no bounds
       suppressWarnings({
         Qmod <- fast_glm(reg_form = stats::as.formula(Qform),
-                         data = wideDataList[[1]][include, ],
+                         data = wideDataList[[1]][include, c(outcomeName, "trt", names(adjustVars))],
                          family = stats::binomial())
         if (unique(class(Qmod) %in% c("glm", "lm"))) {
           Qmod <- cleanglm(Qmod)
@@ -152,7 +152,7 @@ estimateIteratedMean <- function(wideDataList, t, whichJ, allJ, t0, adjustVars,
           suppressWarnings({
             Qform_trt <- paste(outcomeName, "~", "trt", sep = " ")
             Qmod <- fast_glm(reg_form = stats::as.formula(Qform_trt),
-                             data = wideDataList[[1]][include, ],
+                             data = wideDataList[[1]][include, c(outcomeName, "trt", names(adjustVars))],
                              family = stats::gaussian())
             wideDataList <- lapply(wideDataList, function(x, whichJ, t) {
               suppressWarnings(
@@ -166,13 +166,14 @@ estimateIteratedMean <- function(wideDataList, t, whichJ, allJ, t0, adjustVars,
           simplify <- nE <= cvControl$V
           if(simplify) cvControl <- list(V = nE - 1, stratifyCV = TRUE)
           suppressWarnings(
-            Qmod <- SuperLearner::SuperLearner(Y = wideDataList[[1]][include,outcomeName],
+            Qmod <- SuperLearner::SuperLearner(Y = wideDataList[[1]][include, outcomeName],
                                                X = wideDataList[[1]][include, c("trt", names(adjustVars))],
                                                SL.library = SL.ftime,
                                                cvControl = cvControl,
                                                family = "binomial",
                                                verbose = verbose)
           )
+
           wideDataList <- lapply(wideDataList, function(x, whichJ, t) {
             x[[Qj.t]] <- x[[Nj.tm1]] + (1-x[[NnotJ.tm1]]-x[[Nj.tm1]])*
               predict(Qmod, newdata = x[, c('trt', names(adjustVars))], onlySL = TRUE)$pred

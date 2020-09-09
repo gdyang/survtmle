@@ -198,8 +198,11 @@ fluctuateIteratedMean <- function(wideDataList, t, uniqtrt, whichJ, allJ, t0,ofI
           )
           epsilon <- matrix(flucMod$coefficients)
           # get predictions back
-
-
+          print(epsilon)
+          if (max(abs(epsilon)) > 1e2 ) {
+            warning("Influence Function did not converge")
+            D_ind <- 0
+          }else {
 
           for (i in seq_len(nrow(timeAndType))){
 
@@ -249,7 +252,12 @@ fluctuateIteratedMean <- function(wideDataList, t, uniqtrt, whichJ, allJ, t0,ofI
           }
 
           D_ind <- max(abs(rowMeans(D_allt)))
-          if(loop.ind > 6){D_ind <- 0}
+          #print(D_ind)
+          if(loop.ind > 10 ){
+            warning("Influence Function did not converge")
+            D_ind <- 0
+          }
+          }
           }
        }
       }else {
