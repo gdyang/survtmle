@@ -186,8 +186,6 @@ mean_tmle <- function(ftime,
                       returnModels = FALSE,
                       ftypeOfInterest = unique(ftype[ftype != 0]),
                       trtOfInterest = unique(trt),
-                      trtofTime = NULL,   ### new
-                      varofTime = NULL,   ### new
                       bounds = NULL,
                       verbose = FALSE,
                       Gcomp = FALSE,
