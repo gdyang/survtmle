@@ -25,7 +25,7 @@
 #' @param SL.ctime A character vector or list specification to be passed to the
 #'        \code{SL.library} argument in the call to \code{SuperLearner} for the
 #'        outcome regression (either cause-specific hazards or conditional mean).
-#'        See \code{?SuperLearner} for more information on how to specify valid
+#'        See \code{?SuperLearner} for more information on how to specify valid 
 #'        \code{SuperLearner} libraries. It is expected that the wrappers used
 #'        in the library will play nicely with the input variables, which will
 #'        be called \code{"trt"} and \code{names(adjustVars)}.
@@ -87,9 +87,9 @@ estimateCensoring <- function(dataList,
     if(!(any(c("glm", "speedglm") %in% class(glm.ctime)))) {
       if(!all(dataList[[1]]$C == 0)) {
         ctimeForm <- stats::as.formula(sprintf("%s ~ %s", "C", glm.ctime))
-        ctimeMod <- suppressWarnings(fast_glm(reg_form = ctimeForm,
-                             data = dataList[[1]][include, c("C","trt", colnames(adjustVars))],
-                             family = eval(glm_family)))
+        ctimeMod <- fast_glm(reg_form = ctimeForm,
+                             data = dataList[[1]][include, ],
+                             family = eval(glm_family))
         if (unique(class(ctimeMod) %in% c("glm", "lm"))) {
           ctimeMod <- cleanglm(ctimeMod)
         }
