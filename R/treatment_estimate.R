@@ -1,67 +1,67 @@
 #' SuperLearning for Multinomial Outcomes
-#' 
+#'
 #' This function is a bare-bones implementation of super learning for a
-#' multinomial outcome. It generates compatible ensemble estimates of each class 
+#' multinomial outcome. It generates compatible ensemble estimates of each class
 #' of an outcome by fitting a sequence of conditional binomial regressions.
 #' For example, if there are three class of outcome, two prediction functions are fit:
-#' the first regresses an indicator of the class with most observations onto 
-#' the predictors, the second regresses an indicator of the class with second most 
+#' the first regresses an indicator of the class with most observations onto
+#' the predictors, the second regresses an indicator of the class with second most
 #' observations onto the predictors in the subset of data not in class one. The second
 #' class probabilities are generated as the probability of being in the second class given
 #' not in the first times the probability of not being in the first. The third class
-#' probabilities are generated as one minus the sum of the other two probabilities. 
-#' 
+#' probabilities are generated as one minus the sum of the other two probabilities.
+#'
 #' Each candidate learner specified in \code{SL.library} is fit this way with a separate
 #' call to \code{SuperLearner} with \code{family = binomial()}. The ensemble is generated
 #' as the convex combination of learners that maximizes cross-validated log-likelihood for
-#' the multinomial outcome. 
-#' 
+#' the multinomial outcome.
+#'
 #' @param Y The multinomial outcome. Must be a numeric vector.
 #' @param X The predictor variables, usually a data.frame.
-#' @param verbose Print messages 
-#' @param SL.library A character vector of prediction algorithms. 
-#' See details below for examples on the structure. 
-#' @param control A list of parameters to control the estimation process. 
-#' Parameters include saveFitLibrary and trimLogit. 
+#' @param verbose Print messages
+#' @param SL.library A character vector of prediction algorithms.
+#' See details below for examples on the structure.
+#' @param control A list of parameters to control the estimation process.
+#' Parameters include saveFitLibrary and trimLogit.
 #' See SuperLearner::SuperLearner.control for details.
-#' @param cvControl A list of parameters to control the cross-validation process. 
-#' Parameters include V, stratifyCV, shuffle and validRows. 
+#' @param cvControl A list of parameters to control the cross-validation process.
+#' Parameters include V, stratifyCV, shuffle and validRows.
 #' See SuperLearner::SuperLearner.CV.control for details.
-#' 
+#'
 #' @return An object of class \code{multiSuperLearner}. \describe{
 #' \item{SuperLearnerFits}{The conditional binomial SuperLearner fits}
 #' \item{coef}{The super learner ensemble weights}
 #' \item{SL.predict}{A matrix with columns corresponding to super learner predictions
 #' of each of the outcomes based on \code{X}.}
-#' \item{library.predict}{A list with each entry corresponding to the candidate 
+#' \item{library.predict}{A list with each entry corresponding to the candidate
 #' learner fits in each of the conditional binomial regressions.}
-#' \item{cvRisk}{The cross-validated negative log-multinomial likelihood loss for 
+#' \item{cvRisk}{The cross-validated negative log-multinomial likelihood loss for
 #' each candidate learner.}
 #' }
-#' 
+#'
 #' @export
-#' 
+#'
 #' @examples
 #' # simulate data
 #' set.seed(1234)
 #' X <- data.frame(x1 = rnorm(100), x2 = rnorm(100))
-#' Y <- rbinom(100, 1, 0.2) + rbinom(100, 1, plogis(X$x1)) + 
+#' Y <- rbinom(100, 1, 0.2) + rbinom(100, 1, plogis(X$x1)) +
 #'          rbinom(100, 1, plogis(X$x2^2))
-#' 
+#'
 #' # fit super learner
 #' fit <- multiSuperLearner(Y = Y, X = X, SL.library = c("SL.glm","SL.mean"))
-#' 
+#'
 
-multiSuperLearner <- function(Y, X, SL.library, 
-    verbose = FALSE, control = list(), 
+multiSuperLearner <- function(Y, X, SL.library,
+    verbose = FALSE, control = list(),
     cvControl = list(), ...){
   # Work flow
   # Order outcomes by prevalence
   # Starting with most prevalent outcome, a_1, fit SuperLearner for
-  #     A = a_1 ~ W 
+  #     A = a_1 ~ W
   # Move to next most prevalent outcome, a_2, fit superLearner for
   #     A = a_2 ~ W | A != a_1
-  # Map to A = a_2, multiplying probabilities 
+  # Map to A = a_2, multiplying probabilities
 
   # Order outcomes by prevalence
   tabY <- table(Y)
@@ -81,21 +81,21 @@ multiSuperLearner <- function(Y, X, SL.library,
   for(y in Y_ord[-length(Y_ord)]){
     ct <- ct + 1
     # who to include
-    include <- rep(TRUE, n) 
+    include <- rep(TRUE, n)
     if(ct > 1){
       include[Y %in% Y_ord[1:(ct-1)]] <- FALSE
     }
     # fit SuperLearner for Y == y ~ X
-    sl_list[[ct]] <- SuperLearner(Y = as.numeric(Y == y), 
+    sl_list[[ct]] <- SuperLearner(Y = as.numeric(Y == y),
                                   X = X,
                                   family = binomial(),
-                                  SL.library = SL.library, 
+                                  SL.library = SL.library,
                                   verbose = verbose, control = control,
                                   cvControl = cvControl)
     if(ct == 1){
-      learner_pred_list[[ct]] <- sl_list[[ct]]$Z      
+      learner_pred_list[[ct]] <- sl_list[[ct]]$Z
     }else{
-      learner_pred_list[[ct]] <- sl_list[[ct]]$Z * 
+      learner_pred_list[[ct]] <- sl_list[[ct]]$Z *
         Reduce("*",lapply(learner_pred_list[1:(ct-1)], function(x){ 1 - x }))
     }
     names(learner_pred_list[[ct]]) <- SL.library
@@ -120,7 +120,7 @@ multiSuperLearner <- function(Y, X, SL.library,
   for(i in 1:n_algo){
     # get this algorithm from the fit for each outcome and
     # take the trimmed logit
-    logit_thisZ <- Reduce("cbind",lapply(learner_pred_list, function(x){ 
+    logit_thisZ <- Reduce("cbind",lapply(learner_pred_list, function(x){
       SuperLearner::trimLogit(x[, i]) }))
     # now get a single vector, where we take the proper column
     # for the observed value of the outcome
@@ -144,11 +144,11 @@ multiSuperLearner <- function(Y, X, SL.library,
   if (anyNA(cvRisk)) {
       upper_bounds[is.na(cvRisk)] = 0
   }
-  r <- nloptr::nloptr(x0 = rep(1/n_algo, n_algo), 
-                      eval_f = obj_and_grad(obs_outcome_pred), 
-                      lb = lower_bounds, ub = upper_bounds, 
-                      eval_g_eq = function(beta) (sum(beta) - 1), 
-                      eval_jac_g_eq = function(beta) rep(1, length(beta)), 
+  r <- nloptr::nloptr(x0 = rep(1/n_algo, n_algo),
+                      eval_f = obj_and_grad(obs_outcome_pred),
+                      lb = lower_bounds, ub = upper_bounds,
+                      eval_g_eq = function(beta) (sum(beta) - 1),
+                      eval_jac_g_eq = function(beta) rep(1, length(beta)),
                       opts = list(algorithm = "NLOPT_LD_SLSQP", xtol_abs = 1e-08))
   coef <- r$solution
         if (anyNA(coef)) {
@@ -159,13 +159,13 @@ multiSuperLearner <- function(Y, X, SL.library,
   coef <- coef/sum(coef)
 
   # compute super learner predictions
-  # stupid way to do it 
+  # stupid way to do it
   pred <- vector(mode = "list", length = n_outcome)
   for(i in 1:(n_outcome-1)){
     if(i == 1){
       learner_mat <- sl_list[[i]]$library.predict
     }else{
-      learner_mat <- sl_list[[i]]$library.predict * 
+      learner_mat <- sl_list[[i]]$library.predict *
         Reduce("*",lapply(sl_list[1:(i-1)], function(x){ 1 - x$library.predict }))
     }
     pred[[i]] <- plogis(SuperLearner::trimLogit(learner_mat) %*% matrix(coef))
@@ -237,12 +237,12 @@ estimateTreatment <- function(dat, adjustVars, glm.trt = NULL, SL.trt = NULL,
                               returnModels = FALSE, verbose = FALSE,
                               gtol = 1e-3, ...) {
   n <- length(dat[,1])
-  
-  
+
+
   uniqtrt <- unique(dat$trt)
   ntrt <- length(uniqtrt)
 
-  
+
 
   if(length(unique(dat$trt)) == 1) {
     eval(parse(text = paste0("dat$g_", unique(dat$trt), "<- 1")))
@@ -315,13 +315,13 @@ estimateTreatment <- function(dat, adjustVars, glm.trt = NULL, SL.trt = NULL,
                                    family = stats::binomial())
         } else {
           trtMod[[ct]] <- glm.trt[[ct]]
-        }    
+        }
         if(ct == 1){
           suppressWarnings(
             pred[[ct]] <- predict(trtMod[[ct]], newdata = trt_data_in, type = "response")
           )
         }else{
-          pred[[ct]] <- predict(trtMod[[ct]], newdata = trt_data_in, type = "response") * 
+          pred[[ct]] <- predict(trtMod[[ct]], newdata = trt_data_in, type = "response") *
             (1 - Reduce("+",lapply(pred[1:(ct-1)], function(x){ x })))
         }
       }
@@ -336,7 +336,7 @@ estimateTreatment <- function(dat, adjustVars, glm.trt = NULL, SL.trt = NULL,
   # truncate propensities
   for(a in unique(dat$trt)){
     eval(parse(text = paste0("dat$g_", a, "[dat$g_", a,
-                           "< gtol]<- gtol")))  
+                           "< gtol]<- gtol")))
   }
 
   # make a column of observed a
@@ -349,7 +349,7 @@ estimateTreatment <- function(dat, adjustVars, glm.trt = NULL, SL.trt = NULL,
   out <- list()
   out$dat <- dat
   out$trtMod <- NULL
-  
+
   if(returnModels) out$trtMod <- trtMod
   return(out)
 }

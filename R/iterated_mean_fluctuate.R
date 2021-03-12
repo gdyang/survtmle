@@ -197,10 +197,10 @@ fluctuateIteratedMean <- function(wideDataList, t, uniqtrt, whichJ, allJ, t0,ofI
                                   start = rep(0, ncol(stack.glm.data)-2))
           )
           epsilon <- matrix(flucMod$coefficients)
-          # get predictions back
-
-
-
+          # get predictions back1
+          if (max(abs(epsilon > 10))) {
+            D_ind <- 0
+          } else {
           for (i in seq_len(nrow(timeAndType))){
 
             t <- timeAndType[i,1]
@@ -249,7 +249,8 @@ fluctuateIteratedMean <- function(wideDataList, t, uniqtrt, whichJ, allJ, t0,ofI
           }
 
           D_ind <- max(abs(rowMeans(D_allt)))
-          if(loop.ind > 6){D_ind <- 0}
+          }
+          if(loop.ind >= 5){D_ind <- 0}
           }
        }
       }else {
