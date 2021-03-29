@@ -96,6 +96,10 @@ fluctuateIteratedMean <- function(wideDataList, t, uniqtrt, whichJ, allJ, t0,ofI
                                        .Machine$double.neg.eps] <- .Machine$double.neg.eps
       x[[paste0("Q", j, ".", t, ".", s)]][x[[paste0("Q", j, ".", t, ".", s)]] >
                                        1 - .Machine$double.neg.eps] <- 1 - .Machine$double.neg.eps
+      x[[paste0("Q", j, "star.", t, ".", s)]][x[[paste0("Q", j, ".", t, ".", s)]] <
+                                            .Machine$double.neg.eps] <- .Machine$double.neg.eps
+      x[[paste0("Q", j, "star.", t, ".", s)]][x[[paste0("Q", j, ".", t, ".", s)]] >
+                                            1 - .Machine$double.neg.eps] <- 1 - .Machine$double.neg.eps
 
           }
         }

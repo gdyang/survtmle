@@ -450,6 +450,8 @@ mean_tmle <- function(ftime,
       msm.family <- binomial()
     }else if(msm.family == "gaussian"){
       msm.family <- gaussian()
+    }else if(msm.family == "poisson"){
+      msm.family <- poisson()
     }
 
     suppressWarnings(
@@ -492,6 +494,15 @@ mean_tmle <- function(ftime,
         })
         fittedValues <- plogis(modelMatrixObs %*% matrix(est))
         deriv <- fittedValues * (1 - fittedValues)
+      } else if(msm.family$family == "poisson"){
+        fittedValueList <- lapply(new.modelMatrixList, function(mm){
+          exp(mm %*% matrix(est))
+        })
+        derivList <- lapply(fittedValueList, function(fitted_value){
+          fitted_value
+        })
+        fittedValues <- exp(modelMatrixObs %*% matrix(est))
+        deriv <- fittedValues
       }
       # mapply goes over values of z
       # apply goes over i = 1,...,n
