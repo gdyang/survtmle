@@ -57,7 +57,7 @@ estimateCensoringT <- function(dat, adjustVars,
                                                    newX = trt_var_past,
                                                    SL.library = SL.ctime,
                                                    id = id_include, verbose = verbose,
-                                                   family = "binomial")
+                                                   family = "binomial", method = "method.CC_nloglik", cvControl = list(V = 5))
             }else{
               trtMod <- SL.trt
               ctimeMod <- "No censoring observed"

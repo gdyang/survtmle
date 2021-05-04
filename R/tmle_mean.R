@@ -276,12 +276,10 @@ mean_tmle <- function(ftime,
                                  glm.family = glm.family,
                                  returnModels = returnModels,
                                  gtol = gtol)
-
-
+    cat("DONE WITH CENSORING FIT!!!\n\n\n")
 
     dataList <- censOut$dataList
     ctimeMod <- censOut$ctimeMod
-
 
 
     wideDataList <- makeWideDataList(dat = dat, dataList = dataList,
@@ -290,9 +288,7 @@ mean_tmle <- function(ftime,
                                      msm.formula = msm.formula,
                                      msmWeightList = msmWeightList)
 
-
-
-
+    cat("MADE WIDE DATA LIST!!!\n\n\n")
 
 
 
@@ -314,11 +310,13 @@ mean_tmle <- function(ftime,
       names(ftimeMod[[j]]) <- paste0("t", s.list)
     }
 
-
     for(row.ind in seq_len(nrow(timeAndType))){
       s <- timeAndType[row.ind,3]
       i <- timeAndType[row.ind,1]
       j <- timeAndType[row.ind,2]
+      cat("ESTIMATING ITERATED MEAN FOR FAILURE TYPE ", j, 
+	  ", FOR t0 ", s, ", AND t ", i, "\n\n\n") 
+
       estOut <- estimateIteratedMean(wideDataList = wideDataList,
                                      t = i,
                                      whichJ = j,
@@ -342,7 +340,8 @@ mean_tmle <- function(ftime,
 
     }
 
-
+    cat("FLUCTUATING ITERATED MEANS\n\n\n")
+	
       wideDataList <- fluctuateIteratedMean(wideDataList = wideDataList,
                                             t = max(t0),
                                             whichJ = ofInterestJ[[1]],
@@ -357,7 +356,7 @@ mean_tmle <- function(ftime,
                                             msm.formula = msm.formula)
 
 
-
+   cat("GETTING POINT ESTIMATES AND CIS")
 
   # get point estimate
   if(is.null(msm.formula)){
@@ -583,3 +582,4 @@ mean_tmle <- function(ftime,
   class(out) <- "survtmle"
   return(out)
 }
+

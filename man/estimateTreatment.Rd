@@ -4,8 +4,16 @@
 \alias{estimateTreatment}
 \title{Estimate Treatment Mechanisms}
 \usage{
-estimateTreatment(dat, adjustVars, glm.trt = NULL, SL.trt = NULL,
-  returnModels = FALSE, verbose = FALSE, gtol = 0.001, ...)
+estimateTreatment(
+  dat,
+  adjustVars,
+  glm.trt = NULL,
+  SL.trt = NULL,
+  returnModels = FALSE,
+  verbose = FALSE,
+  gtol = 0.001,
+  ...
+)
 }
 \arguments{
 \item{dat}{An object of class \code{data.frame}. Must have named column

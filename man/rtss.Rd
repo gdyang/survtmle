@@ -4,7 +4,8 @@
 \name{rtss}
 \alias{rtss}
 \title{Mock RTSS/AS01 data set}
-\format{A \code{list} with 10 entries, each a \code{data.frame} with 6,890
+\format{
+A \code{list} with 10 entries, each a \code{data.frame} with 6,890
         rows and 18 columns.
 \describe{
   \item{ftime}{number of months until first recorded malaria disease}
@@ -24,7 +25,8 @@
   \item{startMonthCat}{study site-specific indicator of rainy (=1) versus dry
                        (=0) season}
   ...
-}}
+}
+}
 \usage{
 rtss
 }

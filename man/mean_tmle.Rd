@@ -4,12 +4,32 @@
 \alias{mean_tmle}
 \title{TMLE for G-Computation of Cumulative Incidence}
 \usage{
-mean_tmle(ftime, ftype, trt, t0 = max(ftime[ftype > 0]), adjustVars = NULL,
-  SL.ftime = NULL, SL.ctime = NULL, SL.trt = NULL, glm.ftime = NULL,
-  glm.ctime = NULL, glm.trt = "1", glm.family = "binomial",
-  returnIC = TRUE, returnModels = FALSE,
-  ftypeOfInterest = unique(ftype[ftype != 0]), trtOfInterest = unique(trt),
-  bounds = NULL, verbose = FALSE, Gcomp = FALSE, gtol = 0.001, ...)
+mean_tmle(
+  ftime,
+  ftype,
+  trt,
+  t0 = max(ftime[ftype > 0]),
+  adjustVars = NULL,
+  SL.ftime = NULL,
+  SL.ctime = NULL,
+  SL.trt = NULL,
+  glm.ftime = NULL,
+  glm.ctime = NULL,
+  glm.trt = "1",
+  glm.family = "binomial",
+  msm.formula = NULL,
+  msm.family = NULL,
+  msm.weights = "marginal",
+  returnIC = TRUE,
+  returnModels = FALSE,
+  ftypeOfInterest = unique(ftype[ftype != 0]),
+  trtOfInterest = unique(trt),
+  bounds = NULL,
+  verbose = FALSE,
+  Gcomp = FALSE,
+  gtol = 0.001,
+  ...
+)
 }
 \arguments{
 \item{ftime}{A numeric vector of failure times. Right-censored observations
@@ -77,6 +97,18 @@ the estimation and fluctuation procedures. The default is "binomial"
 for logistic regression. Only change this from the default if there
 are justifications that are well understood. This is passed directly
 to \code{estimateCensoring}.}
+
+\item{msm.formula}{A valid right-hand-side of a formula that can include
+variables \code{trt} and \code{colnames(adjustVars)}}
+
+\item{msm.family}{A family argument for the msm (either \code{"gaussian"} for
+an L-2 projection onto a linear MSM or \code{"binomial"} for a
+Kulback-Leibler projection onto a logistic-linear MSM}
+
+\item{msm.weights}{A character specifying what weights to use for the projection
+onto the working MSM. Options now include "marginal" (weight by marginal
+probability of treatment) or "equal" (equal weight, all treatment and
+covariates)}
 
 \item{returnIC}{A boolean indicating whether to return vectors of influence
 curve estimates. These are needed for some post-hoc comparisons, so it

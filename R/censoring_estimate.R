@@ -140,6 +140,8 @@ estimateCensoring <- function(dataList,
                                                                             names(adjustVars))],
                                                id = dataList[[1]]$id[include],
                                                family = "binomial",
+					       method = "method.CC_nloglik",
+					       cvControl = list(V = 5),
                                                SL.library = SL.ctime,
                                                verbose = verbose)
     } else {

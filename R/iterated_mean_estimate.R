@@ -143,7 +143,7 @@ estimateIteratedMean <- function(wideDataList, t, whichJ, allJ, t0, adjustVars,
       # some stability checks
       # number of unique outcome values
       nUniq <- length(unique(wideDataList[[1]][include,outcomeName]))
-      cvControl <- SuperLearner::SuperLearner.CV.control()
+      cvControl <- SuperLearner::SuperLearner.CV.control(V = 5)
       if(t == t0) {
         # if there are less than 2 events at t0, just fit regression using only Z
         nE <- sum(wideDataList[[1]][include, outcomeName])
@@ -169,6 +169,7 @@ estimateIteratedMean <- function(wideDataList, t, whichJ, allJ, t0, adjustVars,
             Qmod <- SuperLearner::SuperLearner(Y = wideDataList[[1]][include,outcomeName],
                                                X = wideDataList[[1]][include, c("trt", names(adjustVars))],
                                                SL.library = SL.ftime,
+					       method = "tmp_method.CC_nloglik",
                                                cvControl = cvControl,
                                                family = "binomial",
                                                verbose = verbose)
@@ -180,12 +181,29 @@ estimateIteratedMean <- function(wideDataList, t, whichJ, allJ, t0, adjustVars,
           }, t = t, whichJ = whichJ)
         }
       } else {
+	      ignoreSL <- length(unique(wideDataList[[1]][include, outcomeName])) == 1
+        if(ignoreSL) {
+          suppressWarnings({
+            Qform_trt <- paste(outcomeName, "~", "trt", sep = " ")
+            Qmod <- fast_glm(reg_form = stats::as.formula(Qform_trt),
+                             data = wideDataList[[1]][include, ],
+                             family = stats::gaussian())
+            wideDataList <- lapply(wideDataList, function(x, whichJ, t) {
+              suppressWarnings(
+              x[[Qj.t]] <- x[[Nj.tm1]] + (1-x[[NnotJ.tm1]]- x[[Nj.tm1]]) *
+                predict(Qmod,newdata=data.frame(trt=x$trt))
+             )
+             x
+            }, t = t, whichJ = whichJ)
+          })
+        } else {
         suppressWarnings(
           Qmod <- SuperLearner::SuperLearner(Y = wideDataList[[1]][include, outcomeName],
                                              X = wideDataList[[1]][include, c("trt", names(adjustVars))],
                                              SL.library = SL.ftime,
                                              cvControl = cvControl,
                                              family = "binomial",
+					     method = "tmp_method.CC_LS",
                                              verbose = verbose)
         )
         wideDataList <- lapply(wideDataList, function(x, whichJ, t) {
@@ -195,7 +213,7 @@ estimateIteratedMean <- function(wideDataList, t, whichJ, allJ, t0, adjustVars,
           )
           x
         }, t = t, whichJ = whichJ)
-      }
+      }}
     } else {
       stop("Super Learner code with bounds not written yet")
     }

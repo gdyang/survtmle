@@ -4,9 +4,18 @@
 \alias{estimateCensoring}
 \title{Estimate Censoring Mechanisms}
 \usage{
-estimateCensoring(dataList, adjustVars, t0, SL.ctime = NULL,
-  glm.ctime = NULL, glm.family, returnModels = FALSE, verbose = TRUE,
-  gtol = 0.001, ...)
+estimateCensoring(
+  dataList,
+  adjustVars,
+  t0,
+  SL.ctime = NULL,
+  glm.ctime = NULL,
+  glm.family,
+  returnModels = FALSE,
+  verbose = TRUE,
+  gtol = 0.001,
+  ...
+)
 }
 \arguments{
 \item{dataList}{A list of \code{data.frame} objects as described in

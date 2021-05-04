@@ -294,7 +294,8 @@ estimateIteratedMeanT <- function(wideDataList, t, whichJ, allJ, t0, adjustVars,
             Qmod <- SuperLearner::SuperLearner(Y = wideDataList[[1]][include,outcomeName],
                                                X = trt_var_past[include, ],
                                                SL.library = SL.ftime,
-                                               cvControl = cvControl,
+                                               cvControl = list(V = 5), method = "method.CC_nloglik",
+
                                                family = "binomial",
                                                verbose = verbose)
           )
@@ -309,7 +310,8 @@ estimateIteratedMeanT <- function(wideDataList, t, whichJ, allJ, t0, adjustVars,
           Qmod <- SuperLearner::SuperLearner(Y = wideDataList[[1]][include, outcomeName],
                                              X = cbind(trt_var_past[include, ]),
                                              SL.library = SL.ftime,
-                                             cvControl = cvControl,
+                                             cvControl = list(V = 5),
+					     method = "method.CC_LS",
                                              family = "binomial",
                                              verbose = verbose)
         )

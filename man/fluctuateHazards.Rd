@@ -4,8 +4,21 @@
 \alias{fluctuateHazards}
 \title{Fluctuation for the Method of Cause-Specific Hazards}
 \usage{
-fluctuateHazards(dataList, allJ, ofInterestJ, nJ, uniqtrt, ntrt, t0, verbose,
-  ...)
+fluctuateHazards(
+  dataList,
+  allJ,
+  ofInterestJ,
+  nJ,
+  uniqtrt,
+  ntrt,
+  t0,
+  verbose,
+  msm.formula = NULL,
+  msm.family = NULL,
+  msm.p = NULL,
+  msmWeightList = NULL,
+  ...
+)
 }
 \arguments{
 \item{dataList}{A list of \code{data.frame} objects.}
@@ -25,6 +38,11 @@ passed to \code{hazard_tmle}.}
 
 \item{verbose}{A boolean indicating whether the function should print
 messages to indicate progress.}
+
+\item{msm.formula}{A valid right-hand-side of a formula that can include 
+variables \code{trt} and \code{colnames(adjustVars)}}
+
+\item{msm.p}{Dimension of MSM parameter}
 
 \item{...}{Other arguments. Not currently used.}
 }

@@ -4,8 +4,21 @@
 \alias{getHazardInfluenceCurve}
 \title{Extract Influence Curve for Estimated Hazard Functions}
 \usage{
-getHazardInfluenceCurve(dataList, dat, allJ, ofInterestJ, nJ, uniqtrt, t0,
-  verbose, ...)
+getHazardInfluenceCurve(
+  dataList,
+  dat,
+  allJ,
+  ofInterestJ,
+  nJ,
+  uniqtrt,
+  t0,
+  verbose,
+  msm.formula,
+  msm.family,
+  msm.est = NULL,
+  msmWeightList,
+  ...
+)
 }
 \arguments{
 \item{dataList}{A list of \code{data.frame} objects. See \code{?makeDataList}
@@ -27,6 +40,8 @@ passed to \code{hazard_tmle}.}
 
 \item{verbose}{A boolean indicating whether the function should print
 messages to indicate progress.}
+
+\item{msm.formula}{TO DO: Add documentation here}
 
 \item{...}{Other arguments. Not currently used.}
 }

@@ -94,12 +94,12 @@ fluctuateIteratedMean <- function(wideDataList, t, uniqtrt, whichJ, allJ, t0,ofI
       # check for 0's and 1's
       x[[paste0("Q", j, ".", t, ".", s)]][x[[paste0("Q", j, ".", t, ".", s)]] <
                                        .Machine$double.neg.eps] <- .Machine$double.neg.eps
+ x[[paste0("Q", j, "star.", t, ".", s)]][x[[paste0("Q", j, ".", t, ".", s)]] <
+                                       .Machine$double.neg.eps] <- .Machine$double.neg.eps
       x[[paste0("Q", j, ".", t, ".", s)]][x[[paste0("Q", j, ".", t, ".", s)]] >
                                        1 - .Machine$double.neg.eps] <- 1 - .Machine$double.neg.eps
-      x[[paste0("Q", j, "star.", t, ".", s)]][x[[paste0("Q", j, ".", t, ".", s)]] <
-                                            .Machine$double.neg.eps] <- .Machine$double.neg.eps
-      x[[paste0("Q", j, "star.", t, ".", s)]][x[[paste0("Q", j, ".", t, ".", s)]] >
-                                            1 - .Machine$double.neg.eps] <- 1 - .Machine$double.neg.eps
+            x[[paste0("Q", j, "star.", t, ".", s)]][x[[paste0("Q", j, ".", t, ".", s)]] >
+                                       1 - .Machine$double.neg.eps] <- 1 - .Machine$double.neg.eps
 
           }
         }
@@ -254,7 +254,7 @@ fluctuateIteratedMean <- function(wideDataList, t, uniqtrt, whichJ, allJ, t0,ofI
 
           D_ind <- max(abs(rowMeans(D_allt)))
           }
-          if(loop.ind >= 5){D_ind <- 0}
+          if(loop.ind >= 2){D_ind <- 0}
           }
        }
       }else {
@@ -339,3 +339,4 @@ fluctuateIteratedMean <- function(wideDataList, t, uniqtrt, whichJ, allJ, t0,ofI
   }
   wideDataList
 }
+
